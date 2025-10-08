@@ -303,3 +303,77 @@ Proceed with the implementation.
 Update documentation in codebase/agent-environment/ accordingly when done.
 
 ----
+
+# ✅ Upstream issue - request for review
+
+Read the following files:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Your goal is to create the description of main elements of the `agent_env`, focused on Sesson, Worker, Task, and Job. Second section would explain ModelProvider and ContextContainer. Third would briefly explain AgentEnvTextUi and its components.
+
+----
+
+# ✅ Re-architecture - pre-planning
+Read the following files:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Look at planning/rethink-comms/situation.md
+I'm working on a request for review this architecture, and propose more options.
+
+Your goal is to identify the elements mentioned in this file, and add code references (file paths) to them.
+
+----
+
+# ✅ Re-architecture - planning
+Read the following files:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Look at planning/rethink-comms/situation.md
+This is your task for this iteration.
+
+Write proposed designs to new folder planning/rethink-comms
+
+Follow this approach:
+1. Identify general top-level ideas for possible approaches
+2. Write them down to separate files (name them like `planning/rethink-comms/<idea-short-name>-0-idea.md`)
+3. Invoke sub-q with sub-agent `C` for each of them to work out a top-level idea into detailed desing, as asked in `situation.md`
+    - Use command `q chat --agent C --no-interactive "<PROMPT>"`
+    - in the prompt include:
+        - instructions to read the same files as in this prompt
+        - instruction to read planning/rethink-comms/situation.md
+        - instruction to read specific idea file
+        - instruction to proceed with design for this specific idea file
+        - instruction to save the design to `planning/rethink-comms/<idea-short-name>-1-design.md`
+
+## Summarization
+Read the following files:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Look at planning/rethink-comms/situation.md
+This is what we _were_ going this time.
+
+Look at the files planning/rethink-comms/*-0-idea.md
+
+Your goal is to create new file, planning/rethink-comms/ideas-summary.md:
+- Summary of each idea, bilued down to one or two paragraphs
+- Effort estimation for each idea, rough
+- Comparison table between the ideas
+    - Show the pros and cons for each
+
+----

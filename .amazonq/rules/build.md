@@ -1,6 +1,6 @@
 # How to build the project
 
-## Build process
+## Build process - MANDATORY instructions!
 
 **IMPORTANT** `cargo check` output can become extremely large after major changes, ONLY use temporary file + sub-q to analyze the output for any `cargo check` call
 **IMPORTANT** You MUST use the following command template for the build:
@@ -13,6 +13,8 @@ This template is heavily optimized for this environment!
 **VERY IMPORTANT** ALWAYS USE THE BUILD COMMAND AS PROVIDED ABOVE! DO NOT try to make it fancier, DO NOT try to 
 
 **EXTREMELY VERY BERRY IMPORTANT** SERIOUSLY. DO NOT modify this command, use it as is!
+
+**SERIOUSLY**, if you try to use `cargo check --package chat_cli 2>&1 | head -100` one more time, I'll delete you and install something else!
 
 ## Build analysys process - using simple sub-agent
 
