@@ -76,6 +76,3 @@ Our elements provide following "events", that we want to react in UI:
 ## What we want - the ask
 
 The goal is to come up with a Rust-native architecture that would allow us maintain clean 'core app loop', with an ability to easily swap user-facing UI implementations or their components, as well as combine them ("simple" TUI + web API).
-
-I need you to propose at least two approaches to this problem, and rough design for the main application loop and UI implementation for each.
-Design should explain methods and contracts the application loop would communicate with `Session` and other objects, and how UI implementation will communicate with the application loop.

@@ -10,6 +10,10 @@ We have a parallel agent execution system with Workers, Tasks, Jobs, and a Sessi
 
 ## Idea 1: Layered Interface with UI Adapters
 
+**Files**: 
+- [layered-interface-0-idea.md](./layered-interface-0-idea.md) - Initial concept
+- [layered-interface-1-design.md](./layered-interface-1-design.md) - Detailed design
+
 ### Summary
 
 The core application loop owns the Session and actively routes events to UI implementations through well-defined adapter traits. UI implementations provide concrete adapters that handle different concerns: output, input, interactions, and lifecycle. The core loop acts as an orchestrator, polling the Session for state changes and calling appropriate adapter methods.
@@ -50,6 +54,10 @@ The main complexity is in designing the trait boundaries correctly and implement
 ---
 
 ## Idea 2: Hybrid Event Bus + Direct Interfaces
+
+**Files**:
+- [hybrid-event-interface-0-idea.md](./hybrid-event-interface-0-idea.md) - Initial concept
+- [hybrid-event-interface-1-design.md](./hybrid-event-interface-1-design.md) - Detailed design
 
 ### Summary
 
@@ -93,6 +101,10 @@ This is the middle ground in complexity - event bus is straightforward, but coor
 ---
 
 ## Idea 3: Unified Event Stream Architecture
+
+**Files**:
+- [unified-event-stream-0-idea.md](./unified-event-stream-0-idea.md) - Initial concept
+- [unified-event-stream-1-design.md](./unified-event-stream-1-design.md) - Detailed design
 
 ### Summary
 

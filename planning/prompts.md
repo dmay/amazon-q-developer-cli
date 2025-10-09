@@ -341,7 +341,9 @@ Read the following files:
 - crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
 
 Look at planning/rethink-comms/situation.md
-This is your task for this iteration.
+
+I need you to propose at least two approaches to this problem, and rough design for the main application loop and UI implementation for each.
+Design should explain methods and contracts the application loop would communicate with `Session` and other objects, and how UI implementation will communicate with the application loop.
 
 Write proposed designs to new folder planning/rethink-comms
 
@@ -375,5 +377,81 @@ Your goal is to create new file, planning/rethink-comms/ideas-summary.md:
 - Effort estimation for each idea, rough
 - Comparison table between the ideas
     - Show the pros and cons for each
+
+----
+
+# Re-architecture - diving deeper into hybrid model
+Look at the following files - current standing:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md - 
+- planning/rethink-comms/hybrid-event-interface-1-design.md - new design plan that 
+- planning/rethink-comms/hybrid-event-interface-1-design.md - new design plan that 
+
+The proposed architecture is assuming that jobs will handle interaction with the user (requets prompts and tool approval). 
+My vision is that jobs will run up until they can't proceed without user input (need new prompt, or need tool approval). After that the job will complete, signal its exit state, and set Worker's state properly (add not auto-approved tool use requests to Worker's data). UI will then provide required information by upodating the same Worker's state (adding new prompt to the Conversation History, or updating open tool use requests with approval or rejection+reason). UI will also be responsible for obtaining permanent or conditional aprovals from the user and set them in the worker's state (Worker will have ToolProvided layer that we will handle separately).
+
+So your goal is to re-work the idea of this architecure in different shape.
+
+Use the following vision. _Consider_ things marked as 'Future:', how they would be implemented in this architecture.
+- Entry Point does the following:
+    - Creates EventBus
+    - Creates Session (using EventBus)
+    - Default 'main' worker (depends on ChatArgs) (future: do not create when started in --web --headless mode)
+        - this worker should already pulish events to EventBus
+    - selected UI implementation core (start with one, future: choose class based on --ui=??, or don't create at all when --headless)
+        - uses Session (_maybe_ default worker if available)
+    - (future: selected headless UIs - web, debug tracker)
+    - AgentEnvironment (using EventBus, Session, main worker (if available), UI implementation(if available)) ('main loop', responsible for )
+    - executes await agentEnvironment.run()
+    - proceeds with cleanup and shutdown
+- EventBus- implemented close enough to the suggested architecure
+    - AgentEvent is AgentEnvironmentEvent, and I want to see them hierarchical of sort (up to reasobnable Rust support):
+        - `AgentEnvironmentEvent(WorkerEvent(StatusChanged(workerId, WorkerStatus.Idle, WorkerStatus.Busy)))`
+        - `AgentEnvironmentEvent(JobEvent(JobStarted(jobId, workerId, jobType)))`
+        - `AgentEnvironmentEvent(JobOutputEvent(jobId, workerId,...)`
+        - The goal here is to let subscribers use more transparent event matching, filtering _only_ to WorkerEvents, for example
+- Session 
+    - takes provided EventBus, passes it down to created Jobs (not Workers!)
+    - When the job is launched - sets worker status to Busy and sends message
+    - When the job is complete - sets worker status to Idle or IdleFailed
+    - Passes EventBus to .run method of the launched task
+- Worker
+    - let's add some 'taskData' hash map, where Tasks can store extra flags as needed. `AgentLoopTask` can store flags like "completed_with_tool_request".
+- WorkerTask trait
+    - run method has to accept EventBus so the implementation can send own messages
+        - bonus if can provide 'limited' sender version, which would only accept messages of the types declared by the WorkerTask implementation
+            - i.e. `impl WorkerTask for AgentLoopTask { fun eventBusEventTypes() => [AgentLoopEvents, JobOutputEvent]; fun run(..., eventSender)}` - Session would use eventBusEventTypes result to make sure the task does not send anything else (like `JobEvent/JobStarted`, for example)
+- AgentEnvironment
+    - monitors interruption and shutdown signals
+    - if main worker and TUI are provided
+        - (future: we can potentially have TUI with no main worker, that would display summary of Session state or something like that)
+        - listens to JobOutputEvents, filters to workerId=mainWorkrId, forwards to TUI
+        - listens to JobEvent/JobCompleted, filters to workerId=mainWorkrId, launches TUI.prompt _not blocking the main loop_, with "callback" or completion
+            - callback takes prompt_result that identifies the next task to execute
+                - Two tasks initially: AgentLoopTask, and ConversationCompactTask (the second just uses a predefined prompt to compact the conversation history)
+                    - Question - do we need TUI.prompt to actually provide extra payload for the task? I.e. ConversationCompactTask can take extra prompt to finetune the result
+            - we assume here that TUI will configure the worker properly before task launch: add new prompt to ConversationHistory or update open tool use requests
+- BasicTextUi (the first implementation of text UI)
+    - provides TUI.prompt method, in the way that AgentEnvironment needs to not block its main loop
+        - the method must provide an option to pass control back to AgentEnvironment to spawn next task
+        - first implementation can be similar to what we have in demo, just simple readline
+        - future implementations will verify more specific state of the worker - did it complete normally, does it have open tool use approval requests, check for job flags etc
+        - future implementations will also provide options to run sub-commands (/quit and /compact at first, then existing /usage, /context, etc)
+            - note about sub-commands that can be launched from TUI (not just for BasicTextUi)
+                - there are two kinds of commands - those that spawn a task in Session, and those that just functions on Worker or Session
+                - you can think about basic prompt like an implicit command /prompt, taht spawns task AgentLoopTask; explicit command /compact spawns task ConversationCompactTask
+
+Your first task is to think about this vision and identify any inconsistencies or potential issues with the initial structure or future implementation.
+
+
+## Putting it together
+
+Write it down to planning/rething-comms/hybrid-event-interface-2-design.md
 
 ----
