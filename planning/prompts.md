@@ -456,3 +456,45 @@ Write it to planning/rething-comms/hybrid-event-interface-2-redesign-challenges.
 Re-read this file, look for my comments `**DM Response**:`. Either add `**Resolved**` after them, or provide more comments and counter-arguments. Write it all to the same file.
 
 ----
+
+# ✅ Re-architecture - putting it together
+Look at the following files - current standing:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/rething-comms/hybrid-event-interface-2-redesign-challenges.md
+
+I need you to come up with a design for the architeture explained in section "Recommended Architecture (Revised)" of hybrid-event-interface-2-redesign-challenges.md
+Design must include all moving pieces, their specs and how they are talking to each other.
+Design must roughly follow existing code organization, folder-wise. I.e. core elements are stored in crates/chat-cli/src/agent_env, TUI-specific elements are stored in crates/chat-cli/src/cli/chat/agent_env_ui
+You can freely overwrite existing classes - this is all was a proof-of-concept and can be dropped. You can use it as approximate guidance though, but with the new architecture having strong priority.
+
+Write it to planning/rething-comms/hybrid-event-interface-2-design.md
+
+## Corrections
+
+Changes to make
+- `OutputChunk.Text` - rename to `OutputChunk.AssistantResponse`
+- `Session.run_agent_loop` - rename to `Session.run_task__agent_loop`
+- `Session` - add similar `Session.run_task__compact_conversation`
+- `WorkerTask` - `task_type` first, `run` second
+- `AgentEnvironment.spawn_event_multicast`, `Ok(event) = receiver.recv() =>` section
+  - `for ui in &headless_uis` - rename `ui` to `headless_ui` here
+- `StructuredIO` is not exactly headless. It still supposed to read prompts (no commands!) from the input stream. Let's simplify it to a single-line input (no JSON with workerId yet)
+- In addition to `JobEvent::OutputChunk` make `AgentLoop` publish event `AgentLoopEvent::ResponseReceived(text)` with whole accumulated response. Make `StructuredIO` listen to this event instad of OutputChunk, and print it as `{"worker_id":$worker_id", "assistant_response":$response}`. Same for `AgentLoopEvent::ToolUseRequestReceived(text)`
+
+Questions:
+- For TextUi we have UserInterface.handle_event and spawn_event_processor that actually subscribes to the base event bus. What's the reason for the second? Why can't we simply rely on AgentEnvironment to pass what events make sense for the UI?
+- What options do we have for TextUi.command_receiver, preferrably keeping code easy to read?
+- explain in more details how `spawn_prompt_loop` works. It sounds to me it would ALWAYS read something from the input? How exactly input_handler.read_line is invoked?
+
+## Corrections
+
+Re-read planning/rethink-comms/hybrid-event-interface-2-design.md, look for my comments `**DM Response**:`. Either add `**Resolved**` after them, or provide more comments and counter-arguments. Write it all to the same file.
+
+----
