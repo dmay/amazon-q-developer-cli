@@ -380,7 +380,7 @@ Your goal is to create new file, planning/rethink-comms/ideas-summary.md:
 
 ----
 
-# Re-architecture - diving deeper into hybrid model
+# ✅ Re-architecture - diving deeper into hybrid model
 Look at the following files - current standing:
 - codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
 - codebase/chat-cli/files-index.md - the list of some important files we are working with 
@@ -449,9 +449,10 @@ Use the following vision. _Consider_ things marked as 'Future:', how they would 
 
 Your first task is to think about this vision and identify any inconsistencies or potential issues with the initial structure or future implementation.
 
+Write it to planning/rething-comms/hybrid-event-interface-2-redesign-challenges.md
 
-## Putting it together
+## Feedback
 
-Write it down to planning/rething-comms/hybrid-event-interface-2-design.md
+Re-read this file, look for my comments `**DM Response**:`. Either add `**Resolved**` after them, or provide more comments and counter-arguments. Write it all to the same file.
 
 ----
