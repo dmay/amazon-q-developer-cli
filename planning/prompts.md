@@ -498,3 +498,27 @@ Questions:
 Re-read planning/rethink-comms/hybrid-event-interface-2-design.md, look for my comments `**DM Response**:`. Either add `**Resolved**` after them, or provide more comments and counter-arguments. Write it all to the same file.
 
 ----
+
+# ✅ EventBus-centered design - planning
+Look at the following files - current standing:
+- codebase/agent-environment/README.md - documentation about the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/event-bus/event-bus-1-design.md - new design document
+
+Your goal is to create new file with detailed implementation plan for it.
+Important note: the existing code is proof-of-concept, and can be easilty replaced or modified without backward compatibility concerns.
+
+It must contain a list of small tasks, numbered and marked with `[ ]`
+Each task must contain enough information to implement it, and refer to specific lines in the design document if necessary
+The list must start with instructtions for an AI assistant, to carefully read the design doc (by path), and proceed with the next not inplemented task. The assistant MUST mark tasks with `[x]` after completed and before going to the next one.
+It's preferrable but NOT mandatory to keep the code buildable between the tasks.
+
+Write it to planning/event-bus/event-bus-2-implementation-plan.md
+
+----
