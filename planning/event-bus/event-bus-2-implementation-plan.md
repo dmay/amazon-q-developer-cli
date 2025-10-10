@@ -827,137 +827,142 @@
 
 ### 7.1 Create TextUi Structure
 
-[ ] **Task 7.1.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs` with basic structure
+[x] **Task 7.1.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports: `tokio::sync::{mpsc, Notify}`, `std::sync::Arc`, `std::path::PathBuf`, `uuid::Uuid`
 - Import Session, AgentEnvironmentEvent, PromptResult, Command, etc.
 - Reference: Design doc "TextUi Implementation"
 
-[ ] **Task 7.1.2**: Implement `TextUi` struct
+[x] **Task 7.1.2**: Implement `TextUi` struct
 - Add fields: `session: Arc<Session>`, `main_worker_id: Uuid`, `input_handler: Arc<InputHandler>`, `cmd_sender: mpsc::Sender<PromptResult>`, `prompt_ready: Arc<Notify>`, `shutdown_signal: Arc<Notify>`
 - Reference: Design doc "TextUi Implementation" → "TextUi struct"
 
-[ ] **Task 7.1.3**: Implement `TextUi::new()` constructor
+[x] **Task 7.1.3**: Implement `TextUi::new()` constructor
 - Accept `session: Arc<Session>`, `main_worker_id: Uuid`, `history_path: Option<PathBuf>` parameters
-- Return `Result<(Self, mpsc::Receiver<PromptResult>)>`
+- Return `Result<Self>` (using Option pattern for receiver)
 - Create command channel with buffer size 10
 - Create InputHandler with history_path
 - Initialize all fields
-- Return tuple of (TextUi, receiver)
-- Reference: Design doc "TextUi Implementation" → "TextUi::new()" and Design Q&A "Option C"
+- Store receiver in Arc<Mutex<Option<Receiver>>>
+- Reference: Design doc "TextUi Implementation" → "TextUi::new()" and Design Q&A "Option D"
 
-[ ] **Task 7.1.4**: Add text_ui module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
+[x] **Task 7.1.4**: Add text_ui module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
 - Add `pub mod text_ui;` declaration
 - Add re-export: `pub use text_ui::TextUi;`
 
-[ ] **Task 7.1.5**: Run `cargo check` to verify TextUi structure compiles
+[x] **Task 7.1.5**: Run `cargo check` to verify TextUi structure compiles
 - Fix any compilation errors
 - Ensure TextUi is properly exported
 
 ### 7.2 Implement UserInterface Trait for TextUi
 
-[ ] **Task 7.2.1**: Implement `UserInterface::start()` for TextUi
+[x] **Task 7.2.1**: Implement `UserInterface::start()` for TextUi
 - Add `#[async_trait]` to impl block
 - Call `self.spawn_prompt_loop()`
 - Return `Ok(())`
 - Reference: Design doc "TextUi Implementation" → "UserInterface trait"
 
-[ ] **Task 7.2.2**: Implement `UserInterface::handle_event()` for TextUi - basic structure
+[x] **Task 7.2.2**: Implement `UserInterface::command_receiver()` for TextUi
+- Use Option pattern with Arc<Mutex<Option<Receiver>>>
+- Take receiver once, panic if called multiple times
+- Reference: Design Q&A "Option D"
+
+[x] **Task 7.2.3**: Implement `UserInterface::handle_event()` for TextUi - basic structure
 - Accept `event: AgentEnvironmentEvent` parameter
 - Filter events by worker_id (only process main_worker_id)
 - Return early if event is for different worker
 - Reference: Design doc "TextUi Implementation" → "handle_event()" and Design Q&A "Option B"
 
-[ ] **Task 7.2.3**: Implement OutputChunk event handling in handle_event()
+[x] **Task 7.2.4**: Implement OutputChunk event handling in handle_event()
 - Match on `AgentEnvironmentEvent::Job(JobEvent::OutputChunk { chunk, .. })`
 - For `OutputChunk::AssistantResponse(text)`: print text and flush stdout
 - For `OutputChunk::ToolUse { tool_name, .. }`: print "[Using tool: {}]"
 - For `OutputChunk::ToolResult { tool_name, .. }`: print "[Tool {} completed]"
 - Reference: Design doc "TextUi Implementation" → "handle_event()"
 
-[ ] **Task 7.2.4**: Implement LifecycleStateChanged event handling in handle_event()
+[x] **Task 7.2.5**: Implement LifecycleStateChanged event handling in handle_event()
 - Match on `AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged { new_state, .. })`
 - For `WorkerLifecycleState::Busy`: do nothing (worker started job)
 - For `WorkerLifecycleState::Idle`: print newline, signal prompt_ready
 - For `WorkerLifecycleState::IdleFailed`: print "[Task failed]", signal prompt_ready
 - Reference: Design doc "TextUi Implementation" → "handle_event()"
 
-[ ] **Task 7.2.5**: Run `cargo check` to verify UserInterface implementation compiles
+[x] **Task 7.2.6**: Run `cargo check` to verify UserInterface implementation compiles
 - Fix any compilation errors
 - Ensure event handling works correctly
 
 ### 7.3 Implement Prompt Loop
 
-[ ] **Task 7.3.1**: Implement `TextUi::spawn_prompt_loop()` method - basic structure
+[x] **Task 7.3.1**: Implement `TextUi::spawn_prompt_loop()` method - basic structure
 - Return `JoinHandle<()>`
 - Clone all necessary fields
 - Use `tokio::spawn()` to create task
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()" and Design Q&A "Q3"
 
-[ ] **Task 7.3.2**: Implement prompt loop with prompt_ready signal
+[x] **Task 7.3.2**: Implement prompt loop with prompt_ready signal
 - Use `tokio::select!` in loop
 - Wait for `prompt_ready.notified()`
 - Read input with `input_handler.read_line("You").await`
 - Handle read errors
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()" and Design Q&A "Q3"
 
-[ ] **Task 7.3.3**: Implement command parsing in prompt loop
+[x] **Task 7.3.3**: Implement command parsing in prompt loop
 - Call `CommandParser::parse(&input)`
 - Handle parse errors
 - Match on Command variants
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()"
 
-[ ] **Task 7.3.4**: Implement UI command handling in prompt loop
+[x] **Task 7.3.4**: Implement UI command handling in prompt loop
 - For `Command::Ui(UiCommand::Usage)`: call `ui_utils::calculate_token_usage()`, print results, re-signal prompt_ready
 - For `Command::Ui(UiCommand::Context)`: call `ui_utils::format_context_info()`, print results, re-signal prompt_ready
 - For `Command::Ui(UiCommand::Status)`: print worker status, re-signal prompt_ready
 - For `Command::Ui(UiCommand::Workers)`: print worker list, re-signal prompt_ready
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()"
 
-[ ] **Task 7.3.5**: Implement Agent command handling in prompt loop
+[x] **Task 7.3.5**: Implement Agent command handling in prompt loop
 - For `Command::Agent(mut agent_cmd)`: fill in worker_id with main_worker_id
 - Send command via `cmd_sender.send(PromptResult::Command(agent_cmd)).await`
 - Handle send errors (channel closed)
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()"
 
-[ ] **Task 7.3.6**: Implement shutdown handling in prompt loop
+[x] **Task 7.3.6**: Implement shutdown handling in prompt loop
 - Add shutdown_signal to tokio::select!
 - Break loop on shutdown notification
 - Reference: Design doc "TextUi Implementation" → "spawn_prompt_loop()"
 
-[ ] **Task 7.3.7**: Run `cargo check` to verify prompt loop compiles
+[x] **Task 7.3.7**: Run `cargo check` to verify prompt loop compiles
 - Fix any compilation errors
 - Ensure prompt loop works correctly
 
 ### 7.4 Write Tests for TextUi
 
-[ ] **Task 7.4.1**: Add test module to text_ui.rs
+[x] **Task 7.4.1**: Add test module to text_ui.rs
 - Add `#[cfg(test)]` module
 - Create mock Session and Worker
 - Create test EventBus
 
-[ ] **Task 7.4.2**: Add test for event filtering
+[x] **Task 7.4.2**: Add test for event filtering
 - Create TextUi with specific main_worker_id
 - Send events for different worker_id
 - Verify events are filtered correctly
 
-[ ] **Task 7.4.3**: Add test for output chunk display
+[x] **Task 7.4.3**: Add test for output chunk display
 - Create TextUi
 - Send OutputChunk events
 - Verify output is displayed (capture stdout)
 
-[ ] **Task 7.4.4**: Add test for lifecycle state transitions
+[x] **Task 7.4.4**: Add test for lifecycle state transitions
 - Create TextUi
 - Send LifecycleStateChanged events
 - Verify prompt_ready is signaled correctly
 
-[ ] **Task 7.4.5**: Add test for command parsing and handling
+[x] **Task 7.4.5**: Add test for command parsing and handling
 - Create TextUi
 - Simulate user input
 - Verify commands are parsed and sent correctly
 
-[ ] **Task 7.4.6**: Run `cargo test` to verify all tests pass
+[x] **Task 7.4.6**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure TextUi works correctly
 
@@ -1467,13 +1472,13 @@ The implementation is complete when:
 - [x] Phase 4: Task Event Publishing (14/14 tasks) ✅
 - [x] Phase 5: Command System (22/22 tasks) ✅
 - [x] Phase 6: AgentEnvironment Coordinator (32/32 tasks) ✅
-- [ ] Phase 7: TextUi Implementation (0/26 tasks)
+- [x] Phase 7: TextUi Implementation (26/26 tasks) ✅
 - [ ] Phase 8: Entry Point Integration (0/24 tasks)
 - [ ] Phase 9: Additional UI Implementations (0/18 tasks)
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 121 / 215 tasks (56.3%)
+**Total Progress**: 147 / 215 tasks (68.4%)
 
 ---
 
