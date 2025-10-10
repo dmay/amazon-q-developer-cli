@@ -972,70 +972,70 @@
 
 ### 8.1 Update ChatArgs::execute()
 
-[ ] **Task 8.1.1**: Update `ChatArgs::execute()` in `crates/chat-cli/src/cli/chat/mod.rs` - create EventBus
+[x] **Task 8.1.1**: Update `ChatArgs::execute()` in `crates/chat-cli/src/cli/chat/mod.rs` - create EventBus
 - Remove old demo code
 - Create EventBus: `let event_bus = EventBus::default();`
 - Reference: Design doc "Entry Point Integration" → "Update ChatArgs::execute()"
 
-[ ] **Task 8.1.2**: Create Session with EventBus
+[x] **Task 8.1.2**: Create Session with EventBus
 - Build model providers (keep existing logic)
 - Create Session: `let session = Arc::new(Session::new(event_bus.clone(), model_providers));`
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.3**: Create main Worker
+[x] **Task 8.1.3**: Create main Worker
 - Call `session.build_worker("main".to_string())`
 - Store worker_id for later use
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.4**: Handle initial input if provided
+[x] **Task 8.1.4**: Handle initial input if provided
 - If `self.input.is_some()`, add message to worker's conversation history
 - Reference: Design doc "Entry Point Integration" → "Handle command-line arguments"
 
-[ ] **Task 8.1.5**: Create TextUi
+[x] **Task 8.1.5**: Create TextUi
 - Get history path (keep existing logic)
 - Call `TextUi::new(session.clone(), main_worker_id, history_path)?`
 - Store both TextUi and command receiver
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.6**: Create AgentEnvironment
+[x] **Task 8.1.6**: Create AgentEnvironment
 - Create with Session, EventBus, Some(TextUi), empty headless_uis vec
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.7**: Handle initial prompt if provided
+[x] **Task 8.1.7**: Handle initial prompt if provided
 - If initial input was provided, send Prompt command to trigger agent loop
 - This should happen before calling `agent_env.run()`
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.8**: Run AgentEnvironment
+[x] **Task 8.1.8**: Run AgentEnvironment
 - Call `agent_env.run().await?`
 - This blocks until shutdown
 - Return `Ok(ExitCode::SUCCESS)`
 - Reference: Design doc "Entry Point Integration"
 
-[ ] **Task 8.1.9**: Run `cargo check` to verify entry point integration compiles
+[x] **Task 8.1.9**: Run `cargo check` to verify entry point integration compiles
 - Fix any compilation errors
 - Ensure ChatArgs::execute() works correctly
 
 ### 8.2 Remove Old Demo Code
 
-[ ] **Task 8.2.1**: Remove `crates/chat-cli/src/agent_env/demo/` directory
+[x] **Task 8.2.1**: Remove `crates/chat-cli/src/agent_env/demo/` directory
 - Delete entire directory and all files within
 - Reference: Design doc "Entry Point Integration" → "Files to Remove"
 
-[ ] **Task 8.2.2**: Remove demo module from `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 8.2.2**: Remove demo module from `crates/chat-cli/src/agent_env/mod.rs`
 - Remove `pub mod demo;` declaration
 - Remove any re-exports of demo types
 
-[ ] **Task 8.2.3**: Remove old UI files
+[x] **Task 8.2.3**: Remove old UI files
 - Delete `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui_worker_to_host_interface.rs`
 - Delete `crates/chat-cli/src/cli/chat/agent_env_ui/prompt_queue.rs` (if not needed)
 - Reference: Design doc "Entry Point Integration" → "Files to Remove"
 
-[ ] **Task 8.2.4**: Update `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
+[x] **Task 8.2.4**: Update `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
 - Remove references to deleted files
 - Keep only: text_ui, ui_utils, input_handler, ctrl_c_handler
 
-[ ] **Task 8.2.5**: Run `cargo check` to verify cleanup is complete
+[x] **Task 8.2.5**: Run `cargo check` to verify cleanup is complete
 - Fix any remaining references to deleted code
 - Ensure code compiles cleanly
 
@@ -1473,12 +1473,15 @@ The implementation is complete when:
 - [x] Phase 5: Command System (22/22 tasks) ✅
 - [x] Phase 6: AgentEnvironment Coordinator (32/32 tasks) ✅
 - [x] Phase 7: TextUi Implementation (26/26 tasks) ✅
-- [ ] Phase 8: Entry Point Integration (0/24 tasks)
+- [x] Phase 8.1: Update ChatArgs::execute() (9/9 tasks) ✅
+- [x] Phase 8.2: Remove Old Demo Code (5/5 tasks) ✅
+- [ ] Phase 8.3: Handle Command-Line Arguments (0/4 tasks)
+- [ ] Phase 8.4: Integration Testing (0/6 tasks)
 - [ ] Phase 9: Additional UI Implementations (0/18 tasks)
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 147 / 215 tasks (68.4%)
+**Total Progress**: 161 / 215 tasks (74.9%)
 
 ---
 

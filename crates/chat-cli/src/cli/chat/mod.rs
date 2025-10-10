@@ -227,8 +227,74 @@ pub struct ChatArgs {
 }
 
 impl ChatArgs {
-    pub async fn execute(self, _os: &mut Os) -> Result<ExitCode> {
-        println!("Hello");
+    pub async fn execute(self, os: &mut Os) -> Result<ExitCode> {
+        use crate::agent_env::{
+            EventBus, Session, AgentEnvironment,
+            model_providers::BedrockConverseStreamModelProvider,
+        };
+        use crate::cli::chat::agent_env_ui::TextUi;
+        use aws_config::BehaviorVersion;
+        use aws_sdk_bedrockruntime::Client as BedrockClient;
+        use aws_types::region::Region;
+        
+        // Task 8.1.1: Create EventBus
+        let event_bus = EventBus::default();
+        
+        // Task 8.1.2: Create Session with EventBus and model providers
+        let config = aws_config::defaults(BehaviorVersion::latest())
+            .region(Region::new("us-east-1"))
+            .load()
+            .await;
+        
+        let bedrock_client = BedrockClient::new(&config);
+        let model_provider: Arc<dyn crate::agent_env::ModelProvider> = 
+            Arc::new(BedrockConverseStreamModelProvider::new(bedrock_client));
+        let model_providers = vec![model_provider];
+        
+        let session = Arc::new(Session::new(event_bus.clone(), model_providers));
+        
+        // Task 8.1.3: Create main Worker
+        let main_worker = session.build_worker("main".to_string());
+        let main_worker_id = main_worker.id;
+        
+        // Task 8.1.4: Handle initial input if provided
+        if let Some(initial_input) = &self.input {
+            main_worker.context_container
+                .conversation_history
+                .lock()
+                .unwrap()
+                .push_input_message(initial_input.clone());
+        }
+        
+        // Task 8.1.5: Create TextUi
+        let history_path = directories::chat_cli_bash_history_path(os).ok();
+        let text_ui = TextUi::new(
+            session.clone(),
+            main_worker_id,
+            history_path,
+        )?;
+        
+        // Task 8.1.6: Create AgentEnvironment
+        let agent_env = AgentEnvironment::new(
+            session.clone(),
+            event_bus.clone(),
+            Some(Arc::new(text_ui)),
+            vec![], // No headless UIs for now
+        );
+        
+        // Task 8.1.7: Handle initial prompt if provided
+        if self.input.is_some() {
+            // Initial input was already added to conversation history in Task 8.1.4
+            // Now we need to trigger the agent loop
+            use crate::agent_env::worker_tasks::AgentLoopInput;
+            
+            // Launch agent loop for initial input
+            session.run_task__agent_loop(main_worker.clone(), AgentLoopInput {})?;
+        }
+        
+        // Task 8.1.8: Run AgentEnvironment
+        agent_env.run().await?;
+        
         Ok(ExitCode::SUCCESS)
     }
 }

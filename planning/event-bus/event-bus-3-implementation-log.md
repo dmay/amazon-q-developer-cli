@@ -777,3 +777,95 @@ test result: ok. 3 passed (event_bus)
 **Next phase**: Phase 8 - Entry Point Integration
 
 ---
+
+
+### Phase 8.1: Update ChatArgs::execute() ✅
+
+**Completed**: October 9, 2025 22:20 PDT
+
+**Tasks completed**:
+- ✅ Task 8.1.1-8.1.9: All ChatArgs::execute() update tasks
+
+**Actions taken**:
+1. Completely rewrote `ChatArgs::execute()` method in `crates/chat-cli/src/cli/chat/mod.rs`:
+   - Removed old stub implementation that just printed "Hello"
+   - Created EventBus with default configuration
+   - Created Session with EventBus and Bedrock model provider
+   - Created main Worker with name "main"
+   - Handled initial input if provided by adding to conversation history
+   - Created TextUi with session, main_worker_id, and history path
+   - Created AgentEnvironment with session, event_bus, TextUi, and no headless UIs
+   - Launched agent loop if initial input was provided
+   - Called `agent_env.run().await?` to start main loop
+2. Integrated Bedrock model provider:
+   - Load AWS config with BehaviorVersion::latest() and us-east-1 region
+   - Create BedrockClient from config
+   - Wrap in Arc<dyn ModelProvider> and pass to Session
+3. Used `directories::chat_cli_bash_history_path(os)` for history file
+4. Verified compilation with `cargo check` - successful with only warnings (no errors)
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/cli/chat/mod.rs`
+
+**Status**: ✅ Complete - Entry point now uses EventBus architecture with real Bedrock model provider
+
+**Next task**: Task 8.2.1 - Remove old demo code
+
+---
+
+## Phase 8.1 Summary
+
+**Total tasks completed**: 9/9 (100%)
+**Overall progress**: 156/215 tasks (72.6%)
+
+**What was built**:
+- Complete integration of EventBus architecture into ChatArgs::execute()
+- EventBus creation and Session initialization
+- Bedrock model provider integration with AWS config
+- Main Worker creation with initial input handling
+- TextUi creation and AgentEnvironment setup
+- Main loop execution with agent_env.run()
+
+**Next phase**: Phase 8.2 - Remove Old Demo Code
+
+---
+
+### Phase 8.2: Remove Old Demo Code ✅
+
+**Completed**: October 9, 2025 22:22 PDT (already done in previous sessions)
+
+**Tasks completed**:
+- ✅ Task 8.2.1-8.2.5: All demo code removal tasks
+
+**Actions taken**:
+1. Verified that all demo code was already removed in previous cleanup:
+   - `crates/chat-cli/src/agent_env/demo/` directory - already deleted
+   - Demo module references in `agent_env/mod.rs` - already removed
+   - Old UI files (text_ui_worker_to_host_interface.rs, prompt_queue.rs) - already deleted
+   - `agent_env_ui/mod.rs` - already cleaned up, only has text_ui, ui_utils, input_handler, ctrl_c_handler
+2. No action needed - all cleanup was completed during architecture preparation
+
+**Files checked**:
+- Verified: `crates/chat-cli/src/agent_env/mod.rs` - clean
+- Verified: `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs` - clean
+
+**Status**: ✅ Complete - All old demo code already removed
+
+**Next task**: Task 8.3.1 - Handle command-line arguments
+
+---
+
+## Phase 8.2 Summary
+
+**Total tasks completed**: 5/5 (100%)
+**Overall progress**: 161/215 tasks (74.9%)
+
+**What was verified**:
+- Demo directory already deleted
+- Demo module references already removed
+- Old UI files already deleted
+- Module exports already cleaned up
+
+**Next phase**: Phase 8.3 - Handle Command-Line Arguments
+
+---
