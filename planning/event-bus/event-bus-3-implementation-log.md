@@ -50,4 +50,39 @@ This file tracks the progress of implementing the EventBus-centered architecture
 
 **Next task**: Task 1.2.1 - Create EventBus implementation
 
+### Phase 1.2: Create EventBus Implementation ✅
+
+**Completed**: October 9, 2025 19:53 PDT
+
+**Tasks completed**:
+- ✅ Task 1.2.1: Create event_bus.rs with basic structure
+- ✅ Task 1.2.2: Implement EventBus struct
+- ✅ Task 1.2.3: Implement EventBus::new() constructor
+- ✅ Task 1.2.4: Implement EventBus::publish() method
+- ✅ Task 1.2.5: Implement EventBus::subscribe() method
+- ✅ Task 1.2.6: Implement EventBus::subscriber_count() method
+- ✅ Task 1.2.7: Implement Default trait for EventBus
+- ✅ Task 1.2.8: Add event_bus module to mod.rs
+- ✅ Task 1.2.9: Verify event_bus compiles
+
+**Actions taken**:
+1. Created `crates/chat-cli/src/agent_env/event_bus.rs` with complete EventBus implementation
+2. Implemented EventBus using tokio::sync::broadcast channel
+3. Added all required methods:
+   - `new(buffer_size)`: Create EventBus with custom buffer
+   - `publish(event)`: Send event to all subscribers (ignores errors if no subscribers)
+   - `subscribe()`: Get a new receiver for events
+   - `subscriber_count()`: Get current number of subscribers
+4. Implemented Default trait with buffer size of 1000
+5. Added event_bus module to `agent_env/mod.rs` with re-export
+6. Verified compilation with `cargo check`
+
+**Files modified**:
+- Created: `crates/chat-cli/src/agent_env/event_bus.rs`
+- Modified: `crates/chat-cli/src/agent_env/mod.rs`
+
+**Status**: ✅ Complete - EventBus is fully implemented and ready to use
+
+**Next task**: Task 1.3.1 - Integrate EventBus into Session
+
 ---

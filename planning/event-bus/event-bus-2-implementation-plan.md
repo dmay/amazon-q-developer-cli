@@ -89,50 +89,50 @@
 
 ### 1.2 Create EventBus Implementation
 
-[ ] **Task 1.2.1**: Create `crates/chat-cli/src/agent_env/event_bus.rs` with basic structure
+[x] **Task 1.2.1**: Create `crates/chat-cli/src/agent_env/event_bus.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports: `tokio::sync::broadcast`, `std::sync::Arc`
 - Import event types from `super::events::*`
 - Reference: Design doc section "EventBus Implementation"
 
-[ ] **Task 1.2.2**: Implement `EventBus` struct
+[x] **Task 1.2.2**: Implement `EventBus` struct
 - Add struct with fields: `sender: broadcast::Sender<AgentEnvironmentEvent>`, `buffer_size: usize`
 - Add `#[derive(Clone)]` to struct
 - Reference: Design doc "EventBus Implementation"
 
-[ ] **Task 1.2.3**: Implement `EventBus::new()` constructor
+[x] **Task 1.2.3**: Implement `EventBus::new()` constructor
 - Accept `buffer_size: usize` parameter
 - Create broadcast channel with specified buffer size
 - Return `Self { sender, buffer_size }`
 - Reference: Design doc "EventBus Implementation" → "Create new EventBus"
 
-[ ] **Task 1.2.4**: Implement `EventBus::publish()` method
+[x] **Task 1.2.4**: Implement `EventBus::publish()` method
 - Accept `event: AgentEnvironmentEvent` parameter
 - Call `self.sender.send(event)`
 - Ignore send errors (no subscribers is OK)
 - Reference: Design doc "EventBus Implementation" → "Publish event"
 
-[ ] **Task 1.2.5**: Implement `EventBus::subscribe()` method
+[x] **Task 1.2.5**: Implement `EventBus::subscribe()` method
 - Return `broadcast::Receiver<AgentEnvironmentEvent>`
 - Call `self.sender.subscribe()`
 - Reference: Design doc "EventBus Implementation" → "Subscribe to events"
 
-[ ] **Task 1.2.6**: Implement `EventBus::subscriber_count()` method
+[x] **Task 1.2.6**: Implement `EventBus::subscriber_count()` method
 - Return `usize`
 - Call `self.sender.receiver_count()`
 - Reference: Design doc "EventBus Implementation" → "Get current subscriber count"
 
-[ ] **Task 1.2.7**: Implement `Default` trait for `EventBus`
+[x] **Task 1.2.7**: Implement `Default` trait for `EventBus`
 - Default buffer size: 1000
 - Call `Self::new(1000)`
 - Reference: Design doc "EventBus Implementation" → "Default implementation"
 
-[ ] **Task 1.2.8**: Add event_bus module to `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 1.2.8**: Add event_bus module to `crates/chat-cli/src/agent_env/mod.rs`
 - Add `pub mod event_bus;` declaration
 - Add re-export: `pub use event_bus::EventBus;`
 
-[ ] **Task 1.2.9**: Run `cargo check` to verify event_bus module compiles
+[x] **Task 1.2.9**: Run `cargo check` to verify event_bus module compiles
 - Fix any compilation errors
 - Ensure EventBus is properly exported
 

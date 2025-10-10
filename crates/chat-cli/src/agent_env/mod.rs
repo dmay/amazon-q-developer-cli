@@ -1,5 +1,6 @@
 // Core modules
 pub mod events;
+pub mod event_bus;
 pub mod worker_job_continuations;
 pub mod model_providers;
 pub mod context_container;
@@ -13,6 +14,7 @@ pub mod worker_tasks;
 
 // Re-exports for convenience
 pub use events::*;
+pub use event_bus::EventBus;
 pub use worker_job_continuations::{Continuations, WorkerJobCompletionType};
 pub use model_providers::{
     ModelProvider, ModelRequest, ModelResponse, ModelResponseChunk,
