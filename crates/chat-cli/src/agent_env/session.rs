@@ -184,7 +184,7 @@ impl Session {
     pub fn run_task__compact_conversation(
         &self,
         _worker: Arc<Worker>,
-        _instruction: Option<String>,
+        _input: super::worker_tasks::CompactInput,
     ) -> Result<Arc<WorkerJob>, eyre::Error> {
         // TODO: Implement in Phase 10
         unimplemented!("run_task__compact_conversation will be implemented in Phase 10")

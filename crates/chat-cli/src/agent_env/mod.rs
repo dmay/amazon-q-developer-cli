@@ -2,6 +2,7 @@
 pub mod events;
 pub mod event_bus;
 pub mod commands;
+pub mod agent_environment;
 pub mod worker_job_continuations;
 pub mod model_providers;
 pub mod context_container;
@@ -17,6 +18,7 @@ pub mod worker_tasks;
 pub use events::*;
 pub use event_bus::EventBus;
 pub use commands::*;
+pub use agent_environment::{AgentEnvironment, UserInterface, HeadlessInterface};
 pub use worker_job_continuations::{Continuations, WorkerJobCompletionType};
 pub use model_providers::{
     ModelProvider, ModelRequest, ModelResponse, ModelResponseChunk,

@@ -644,53 +644,53 @@
 
 ### 6.1 Create AgentEnvironment Structure
 
-[ ] **Task 6.1.1**: Create `crates/chat-cli/src/agent_env/agent_environment.rs` with basic structure
+[x] **Task 6.1.1**: Create `crates/chat-cli/src/agent_env/agent_environment.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports: `tokio::sync::{mpsc, Notify}`, `tokio::task::JoinHandle`, `std::sync::Arc`, `eyre::Result`
 - Import Session, EventBus, commands, events
 - Reference: Design doc "AgentEnvironment Coordinator"
 
-[ ] **Task 6.1.2**: Define `UserInterface` trait
+[x] **Task 6.1.2**: Define `UserInterface` trait
 - Add `#[async_trait]` attribute
 - Add methods: `start()`, `command_receiver()`, `handle_event()`
 - Add trait bounds: `Send + Sync`
 - Reference: Design doc "UI Trait Hierarchy" → "UserInterface"
 
-[ ] **Task 6.1.3**: Define `HeadlessInterface` trait
+[x] **Task 6.1.3**: Define `HeadlessInterface` trait
 - Add `#[async_trait]` attribute
 - Add method: `handle_event()`
 - Add trait bounds: `Send + Sync`
 - Reference: Design doc "UI Trait Hierarchy" → "HeadlessInterface"
 
-[ ] **Task 6.1.4**: Implement `AgentEnvironment` struct
+[x] **Task 6.1.4**: Implement `AgentEnvironment` struct
 - Add fields: `session: Arc<Session>`, `event_bus: EventBus`, `main_ui: Option<Arc<dyn UserInterface>>`, `headless_uis: Vec<Arc<dyn HeadlessInterface>>`, `shutdown_signal: Arc<Notify>`
 - Reference: Design doc "AgentEnvironment Coordinator" → "Implementation"
 
-[ ] **Task 6.1.5**: Implement `AgentEnvironment::new()` constructor
+[x] **Task 6.1.5**: Implement `AgentEnvironment::new()` constructor
 - Accept all fields as parameters
 - Initialize shutdown_signal
 - Return Self
 - Reference: Design doc "AgentEnvironment Coordinator" → "Implementation"
 
-[ ] **Task 6.1.6**: Add agent_environment module to `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 6.1.6**: Add agent_environment module to `crates/chat-cli/src/agent_env/mod.rs`
 - Add `pub mod agent_environment;` declaration
 - Add re-exports: `pub use agent_environment::*;`
 
-[ ] **Task 6.1.7**: Run `cargo check` to verify AgentEnvironment structure compiles
+[x] **Task 6.1.7**: Run `cargo check` to verify AgentEnvironment structure compiles
 - Fix any compilation errors
 - Ensure traits are properly defined
 
 ### 6.2 Implement Event Multicasting
 
-[ ] **Task 6.2.1**: Implement `AgentEnvironment::spawn_event_multicast()` method
+[x] **Task 6.2.1**: Implement `AgentEnvironment::spawn_event_multicast()` method
 - Return `JoinHandle<()>`
 - Subscribe to event_bus
 - Clone main_ui and headless_uis
 - Clone shutdown_signal
 - Reference: Design doc "AgentEnvironment Coordinator" → "spawn_event_multicast()"
 
-[ ] **Task 6.2.2**: Implement event multicast loop
+[x] **Task 6.2.2**: Implement event multicast loop
 - Use `tokio::spawn()` to create task
 - Loop with `tokio::select!`
 - Receive events from event_bus
@@ -698,64 +698,64 @@
 - Call `handle_event()` on all headless_uis
 - Reference: Design doc "AgentEnvironment Coordinator" → "spawn_event_multicast()"
 
-[ ] **Task 6.2.3**: Implement lagged event handling in multicast loop
+[x] **Task 6.2.3**: Implement lagged event handling in multicast loop
 - Handle `RecvError::Lagged(n)` case
 - Log warning with `tracing::warn!`
 - Continue loop
 - Reference: Design doc "AgentEnvironment Coordinator" → "spawn_event_multicast()"
 
-[ ] **Task 6.2.4**: Implement shutdown handling in multicast loop
+[x] **Task 6.2.4**: Implement shutdown handling in multicast loop
 - Handle shutdown_signal notification
 - Log shutdown message
 - Break loop
 - Reference: Design doc "AgentEnvironment Coordinator" → "spawn_event_multicast()"
 
-[ ] **Task 6.2.5**: Run `cargo check` to verify event multicasting compiles
+[x] **Task 6.2.5**: Run `cargo check` to verify event multicasting compiles
 - Fix any compilation errors
 - Ensure multicast task spawns correctly
 
 ### 6.3 Implement Command Processing
 
-[ ] **Task 6.3.1**: Implement `AgentEnvironment::handle_command()` method
+[x] **Task 6.3.1**: Implement `AgentEnvironment::handle_command()` method
 - Accept `cmd: AgentEnvironmentCommand` parameter
 - Return `Result<()>`
 - Match on command variants
 - Reference: Design doc "AgentEnvironment Coordinator" → "handle_command()"
 
-[ ] **Task 6.3.2**: Implement Prompt command handling
+[x] **Task 6.3.2**: Implement Prompt command handling
 - Get worker from session
 - Add message to conversation history
 - Call `session.run_task__agent_loop()`
 - Reference: Design doc "AgentEnvironment Coordinator" → "handle_command()"
 
-[ ] **Task 6.3.3**: Implement Compact command handling
+[x] **Task 6.3.3**: Implement Compact command handling
 - Get worker from session
 - Call `session.run_task__compact_conversation()`
 - Reference: Design doc "AgentEnvironment Coordinator" → "handle_command()"
 
-[ ] **Task 6.3.4**: Implement Quit command handling
+[x] **Task 6.3.4**: Implement Quit command handling
 - Call `self.shutdown_signal.notify_waiters()`
 - Reference: Design doc "AgentEnvironment Coordinator" → "handle_command()"
 
-[ ] **Task 6.3.5**: Run `cargo check` to verify command handling compiles
+[x] **Task 6.3.5**: Run `cargo check` to verify command handling compiles
 - Fix any compilation errors
 - Ensure commands are processed correctly
 
 ### 6.4 Implement Main Run Loop
 
-[ ] **Task 6.4.1**: Implement `AgentEnvironment::run()` method - basic structure
+[x] **Task 6.4.1**: Implement `AgentEnvironment::run()` method - basic structure
 - Return `Result<()>`
 - Spawn event multicast task
 - Check if main_ui is present
 - Reference: Design doc "AgentEnvironment Coordinator" → "run()"
 
-[ ] **Task 6.4.2**: Implement main UI mode in run() method
+[x] **Task 6.4.2**: Implement main UI mode in run() method
 - If main_ui is Some, call `ui.start().await`
 - Get command receiver from UI
 - Enter command processing loop
 - Reference: Design doc "AgentEnvironment Coordinator" → "run()"
 
-[ ] **Task 6.4.3**: Implement command processing loop
+[x] **Task 6.4.3**: Implement command processing loop
 - Use `tokio::select!`
 - Receive from cmd_receiver
 - Match on PromptResult variants
@@ -763,61 +763,61 @@
 - Break loop for Shutdown variant
 - Reference: Design doc "AgentEnvironment Coordinator" → "run()"
 
-[ ] **Task 6.4.4**: Implement headless mode in run() method
+[x] **Task 6.4.4**: Implement headless mode in run() method
 - If main_ui is None, log "Running in headless mode"
 - Wait for shutdown_signal
 - Reference: Design doc "AgentEnvironment Coordinator" → "run()"
 
-[ ] **Task 6.4.5**: Implement cleanup in run() method
+[x] **Task 6.4.5**: Implement cleanup in run() method
 - Log "Shutting down AgentEnvironment"
 - Abort multicast_handle
 - Call `session.cancel_all_jobs()`
 - Return Ok(())
 - Reference: Design doc "AgentEnvironment Coordinator" → "run()"
 
-[ ] **Task 6.4.6**: Implement `AgentEnvironment::shutdown()` method
+[x] **Task 6.4.6**: Implement `AgentEnvironment::shutdown()` method
 - Call `self.shutdown_signal.notify_waiters()`
 - Reference: Design doc "AgentEnvironment Coordinator" → "shutdown()"
 
-[ ] **Task 6.4.7**: Run `cargo check` to verify AgentEnvironment run loop compiles
+[x] **Task 6.4.7**: Run `cargo check` to verify AgentEnvironment run loop compiles
 - Fix any compilation errors
 - Ensure main loop works correctly
 
 ### 6.5 Write Tests for AgentEnvironment
 
-[ ] **Task 6.5.1**: Add test module to agent_environment.rs
+[x] **Task 6.5.1**: Add test module to agent_environment.rs
 - Add `#[cfg(test)]` module
 - Create mock UserInterface implementation
 - Create mock HeadlessInterface implementation
 
-[ ] **Task 6.5.2**: Add test for event multicasting to main UI
+[x] **Task 6.5.2**: Add test for event multicasting to main UI
 - Create AgentEnvironment with mock main UI
 - Spawn multicast task
 - Publish event to event_bus
 - Verify mock UI receives event
 
-[ ] **Task 6.5.3**: Add test for event multicasting to headless UIs
+[x] **Task 6.5.3**: Add test for event multicasting to headless UIs
 - Create AgentEnvironment with multiple mock headless UIs
 - Publish event
 - Verify all headless UIs receive event
 
-[ ] **Task 6.5.4**: Add test for command processing
+[x] **Task 6.5.4**: Add test for command processing
 - Create AgentEnvironment with mock UI
 - Send Prompt command
 - Verify Session launches job
 
-[ ] **Task 6.5.5**: Add test for shutdown coordination
+[x] **Task 6.5.5**: Add test for shutdown coordination
 - Create AgentEnvironment
 - Call shutdown()
 - Verify run() method exits
 - Verify jobs are cancelled
 
-[ ] **Task 6.5.6**: Add test for headless mode
+[x] **Task 6.5.6**: Add test for headless mode
 - Create AgentEnvironment with no main UI
 - Verify run() waits for shutdown
 - Verify no errors occur
 
-[ ] **Task 6.5.7**: Run `cargo test` to verify all tests pass
+[x] **Task 6.5.7**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure AgentEnvironment works correctly
 
@@ -1466,14 +1466,14 @@ The implementation is complete when:
 - [x] Phase 3: Session Event Publishing (11/11 tasks) ✅
 - [x] Phase 4: Task Event Publishing (14/14 tasks) ✅
 - [x] Phase 5: Command System (22/22 tasks) ✅
-- [ ] Phase 6: AgentEnvironment Coordinator (0/32 tasks)
+- [x] Phase 6: AgentEnvironment Coordinator (32/32 tasks) ✅
 - [ ] Phase 7: TextUi Implementation (0/26 tasks)
 - [ ] Phase 8: Entry Point Integration (0/24 tasks)
 - [ ] Phase 9: Additional UI Implementations (0/18 tasks)
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 89 / 215 tasks (41.4%)
+**Total Progress**: 121 / 215 tasks (56.3%)
 
 ---
 
