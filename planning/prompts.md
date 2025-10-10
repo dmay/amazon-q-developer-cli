@@ -576,5 +576,37 @@ When marking a task as completed - just update `[ ]` to `[x]`, do not modify the
 **IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
 And use command templates exactly as provided, no modifications!
 
+----
+
+# EventBus-centered design - implementation - corrections
+
+Look at the following files for a reference - previous attempt:
+- codebase/agent-environment/README.md - documentation about the previous attempt on the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/event-bus/event-bus-1-design.md - new design document
+- planning/event-bus/event-bus-2-implementation-plan.md - the implementation plan, main focus for today
+
+Be aware of following files:
+- planning/event-bus/event-bus-3-implementation-log.md - implementation log of what was done so far
+
+Your goal is to help me with debugging and correct this implementation.
+
+There is a list of identified, investigated, fixed, and open issues in planning/event-bus/event-bus-4-issues.md
+
+Proceed with the next open issue.
+
+Add your findings and resolution to the issue section. Mark it with `[x]` when resolved.
+
+**IMPORTANT** Refer to "# How to build the Q-CLI project" when you need to do `cargo check`
+**IMPORTANT** Refer to "## Test process" in the same section when you need to do `cargo test`
+**IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
+And use command templates exactly as provided, no modifications!
+
 
 ----

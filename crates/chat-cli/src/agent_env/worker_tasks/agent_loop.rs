@@ -72,6 +72,8 @@ impl AgentLoop {
         
         let worker = self.worker.clone();
         let worker_id = self.worker.id;
+        let event_bus = self.event_bus.clone();
+        let job_id = uuid::Uuid::new_v4();
         
         let model_provider = self.worker.model_provider.as_ref()
             .ok_or_else(|| eyre::eyre!("model_provider not available"))?;
@@ -81,8 +83,18 @@ impl AgentLoop {
             Box::new(move || {
                 worker.set_state(WorkerStates::Receiving);
             }),
-            Box::new(move |_chunk| {
-                // Chunk handling stubbed out - will be replaced by EventBus
+            Box::new(move |chunk| {
+                use crate::agent_env::model_providers::ModelResponseChunk;
+                if let ModelResponseChunk::AssistantMessage(text) = chunk {
+                    event_bus.publish(AgentEnvironmentEvent::Job(
+                        JobEvent::OutputChunk {
+                            worker_id,
+                            job_id,
+                            chunk: OutputChunk::AssistantResponse(text),
+                            timestamp: Instant::now(),
+                        }
+                    ));
+                }
             }),
             self.cancellation_token.clone(),
         ).await.map_err(|e| {
@@ -124,18 +136,6 @@ impl WorkerTask for AgentLoop {
         self.worker.set_state(WorkerStates::Working);
 
         let response = self.query_llm().await?;
-
-        // Publish OutputChunk event for assistant response text
-        if !response.content.is_empty() {
-            self.event_bus.publish(AgentEnvironmentEvent::Job(
-                JobEvent::OutputChunk {
-                    worker_id: self.worker.id,
-                    job_id,
-                    chunk: OutputChunk::AssistantResponse(response.content.clone()),
-                    timestamp: Instant::now(),
-                }
-            ));
-        }
 
         // Publish AgentLoopEvent for complete response
         self.event_bus.publish(AgentEnvironmentEvent::AgentLoop(

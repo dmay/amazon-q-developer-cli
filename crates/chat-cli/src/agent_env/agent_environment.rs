@@ -159,6 +159,14 @@ impl AgentEnvironment {
 
     /// Main execution loop
     pub async fn run(&self) -> Result<()> {
+        // Start Ctrl+C handler
+        use crate::cli::chat::agent_env_ui::CtrlCHandler;
+        let ctrl_c_handler = Arc::new(CtrlCHandler::new(
+            self.shutdown_signal.clone(),
+            self.session.clone(),
+        ));
+        ctrl_c_handler.start_listening();
+        
         // Spawn event multicast task (always running)
         let multicast_handle = self.spawn_event_multicast();
 
@@ -177,8 +185,17 @@ impl AgentEnvironment {
                     Some(result) = cmd_receiver.recv() => {
                         match result {
                             PromptResult::Command(cmd) => {
+                                // Check for Quit command before handling
+                                let is_quit = matches!(cmd, AgentEnvironmentCommand::Quit);
+                                
                                 if let Err(e) = self.handle_command(cmd).await {
                                     tracing::error!("Error handling command: {}", e);
+                                }
+                                
+                                // Break immediately after Quit
+                                if is_quit {
+                                    tracing::info!("Quit command received");
+                                    break;
                                 }
                             }
                             PromptResult::Shutdown => {

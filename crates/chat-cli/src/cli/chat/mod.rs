@@ -12,7 +12,7 @@ mod parser;
 mod prompt;
 mod prompt_parser;
 pub mod server_messenger;
-mod agent_env_ui;
+pub mod agent_env_ui;
 use crate::cli::chat::checkpoint::CHECKPOINT_MESSAGE_MAX_LENGTH;
 use crate::constants::ui_text::{
     LIMIT_REACHED_TEXT,
