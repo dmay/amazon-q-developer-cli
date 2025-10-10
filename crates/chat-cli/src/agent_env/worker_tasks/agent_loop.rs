@@ -1,11 +1,14 @@
 use std::sync::Arc;
+use std::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, debug, error};
 
 use crate::agent_env::{
     Worker, WorkerTask, WorkerStates,
-    ModelRequest, ModelResponse, ModelProvider,
+    ModelRequest, ModelResponse,
+    EventBus, AgentEnvironmentEvent, JobEvent, AgentLoopEvent, OutputChunk,
 };
+use crate::agent_env::worker::task_metadata_keys;
 use crate::cli::chat::message::{AssistantMessage, UserMessageContent};
 
 pub struct AgentLoopInput {
@@ -14,6 +17,7 @@ pub struct AgentLoopInput {
 
 pub struct AgentLoop {
     worker: Arc<Worker>,
+    event_bus: EventBus,
     cancellation_token: CancellationToken,
 }
 
@@ -21,10 +25,12 @@ impl AgentLoop {
     pub fn new(
         worker: Arc<Worker>,
         _input: AgentLoopInput,
+        event_bus: EventBus,
         cancellation_token: CancellationToken,
     ) -> Self {
         Self {
             worker,
+            event_bus,
             cancellation_token,
         }
     }
@@ -109,7 +115,8 @@ impl WorkerTask for AgentLoop {
     }
 
     async fn run(&self) -> Result<(), eyre::Error> {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
+        let job_id = uuid::Uuid::new_v4(); // TODO: Get from WorkerJob
         info!(worker_id = %self.worker.id, "Agent loop started");
 
         self.check_cancellation()?;
@@ -117,6 +124,59 @@ impl WorkerTask for AgentLoop {
         self.worker.set_state(WorkerStates::Working);
 
         let response = self.query_llm().await?;
+
+        // Publish OutputChunk event for assistant response text
+        if !response.content.is_empty() {
+            self.event_bus.publish(AgentEnvironmentEvent::Job(
+                JobEvent::OutputChunk {
+                    worker_id: self.worker.id,
+                    job_id,
+                    chunk: OutputChunk::AssistantResponse(response.content.clone()),
+                    timestamp: Instant::now(),
+                }
+            ));
+        }
+
+        // Publish AgentLoopEvent for complete response
+        self.event_bus.publish(AgentEnvironmentEvent::AgentLoop(
+            AgentLoopEvent::ResponseReceived {
+                worker_id: self.worker.id,
+                job_id,
+                text: response.content.clone(),
+                timestamp: Instant::now(),
+            }
+        ));
+
+        // Publish events for tool use requests
+        for tool_request in &response.tool_requests {
+            // Parse parameters as JSON
+            let tool_input: serde_json::Value = serde_json::from_str(&tool_request.parameters)
+                .unwrap_or_else(|_| serde_json::Value::String(tool_request.parameters.clone()));
+
+            // Publish OutputChunk event for tool use
+            self.event_bus.publish(AgentEnvironmentEvent::Job(
+                JobEvent::OutputChunk {
+                    worker_id: self.worker.id,
+                    job_id,
+                    chunk: OutputChunk::ToolUse {
+                        tool_name: tool_request.tool_name.clone(),
+                        tool_input: tool_input.clone(),
+                    },
+                    timestamp: Instant::now(),
+                }
+            ));
+
+            // Publish AgentLoopEvent for tool use request
+            self.event_bus.publish(AgentEnvironmentEvent::AgentLoop(
+                AgentLoopEvent::ToolUseRequestReceived {
+                    worker_id: self.worker.id,
+                    job_id,
+                    tool_name: tool_request.tool_name.clone(),
+                    tool_input,
+                    timestamp: Instant::now(),
+                }
+            ));
+        }
 
         // Create assistant message and add to history
         let assistant_message = if response.tool_requests.is_empty() {
@@ -132,11 +192,23 @@ impl WorkerTask for AgentLoop {
             .unwrap()
             .push_assistant_message(assistant_message);
 
+        // Set completion state metadata
         if !response.tool_requests.is_empty() {
+            // Tool approval needed (for future implementation)
+            self.worker.set_task_metadata(
+                task_metadata_keys::AGENT_LOOP_COMPLETION_STATE,
+                serde_json::Value::String("completed_with_tool_request".to_string()),
+            );
             info!(
                 worker_id = %self.worker.id,
                 tool_count = response.tool_requests.len(),
-                "Tool requests accumulated"
+                "Tool requests accumulated - approval needed"
+            );
+        } else {
+            // Normal completion - ready for new prompt
+            self.worker.set_task_metadata(
+                task_metadata_keys::AGENT_LOOP_COMPLETION_STATE,
+                serde_json::Value::String("completed_ready_for_prompt".to_string()),
             );
         }
 

@@ -572,7 +572,9 @@ Update the tasks in the implementation plan, mark completed tasks as you go, AND
 When marking a task as completed - just update `[ ]` to `[x]`, do not modify the task itself.
 
 **IMPORTANT** Refer to "# How to build the Q-CLI project" when you need to do `cargo check`
+**IMPORTANT** Refer to "## Test process" in the same section when you need to do `cargo test`
 **IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
+And use command templates exactly as provided, no modifications!
 
 
 ----

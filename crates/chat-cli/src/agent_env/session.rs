@@ -73,10 +73,11 @@ impl Session {
         // Create cancellation token
         let cancellation_token = CancellationToken::new();
         
-        // Create task (note: EventBus will be added in Phase 4)
+        // Create task with EventBus
         let task = AgentLoop::new(
             worker.clone(),
             input,
+            self.event_bus.clone(),
             cancellation_token.clone(),
         );
         
@@ -141,7 +142,7 @@ impl Session {
         
         // Get worker to extract task metadata
         let task_metadata = if let Some(worker) = self.get_worker(worker_id) {
-            worker.task_metadata.clone()
+            worker.task_metadata.lock().unwrap().clone()
         } else {
             std::collections::HashMap::new()
         };

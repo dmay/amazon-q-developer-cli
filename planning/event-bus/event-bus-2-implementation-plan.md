@@ -396,76 +396,76 @@
 
 ### 4.1 Update AgentLoop Task
 
-[ ] **Task 4.1.1**: Update `AgentLoop` struct in `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs`
+[x] **Task 4.1.1**: Update `AgentLoop` struct in `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs`
 - Add field: `event_bus: EventBus`
 - Remove `worker_interface` field (deprecated)
 - Reference: Design doc "AgentLoop Task"
 
-[ ] **Task 4.1.2**: Update `AgentLoop::new()` constructor
+[x] **Task 4.1.2**: Update `AgentLoop::new()` constructor
 - Add parameter: `event_bus: EventBus`
 - Remove `worker_interface` parameter
 - Store event_bus in struct
 - Reference: Design doc "AgentLoop Task"
 
-[ ] **Task 4.1.3**: Update `AgentLoop::run()` to publish OutputChunk events for text
+[x] **Task 4.1.3**: Update `AgentLoop::run()` to publish OutputChunk events for text
 - In response stream processing loop
 - When receiving `ResponseChunk::Text(text)`
 - Publish `JobEvent::OutputChunk` with `OutputChunk::AssistantResponse(text)`
 - Reference: Design doc "AgentLoop Task" → "run()"
 
-[ ] **Task 4.1.4**: Update `AgentLoop::run()` to publish OutputChunk events for tool use
+[x] **Task 4.1.4**: Update `AgentLoop::run()` to publish OutputChunk events for tool use
 - When receiving `ResponseChunk::ToolUse { name, input }`
 - Publish `JobEvent::OutputChunk` with `OutputChunk::ToolUse`
 - Reference: Design doc "AgentLoop Task" → "run()"
 
-[ ] **Task 4.1.5**: Update `AgentLoop::run()` to publish AgentLoopEvent for tool use
+[x] **Task 4.1.5**: Update `AgentLoop::run()` to publish AgentLoopEvent for tool use
 - After publishing OutputChunk for tool use
 - Publish `AgentLoopEvent::ToolUseRequestReceived` with tool details
 - Reference: Design doc "AgentLoop Task" → "run()"
 
-[ ] **Task 4.1.6**: Update `AgentLoop::run()` to publish AgentLoopEvent for response
+[x] **Task 4.1.6**: Update `AgentLoop::run()` to publish AgentLoopEvent for response
 - After completing response stream
 - Publish `AgentLoopEvent::ResponseReceived` with complete response text
 - Reference: Design doc "AgentLoop Task" → "run()"
 
-[ ] **Task 4.1.7**: Update `AgentLoop::run()` to publish OutputChunk events for tool results
+[x] **Task 4.1.7**: Update `AgentLoop::run()` to publish OutputChunk events for tool results
 - In `execute_tools()` method
 - After executing each tool
 - Publish `JobEvent::OutputChunk` with `OutputChunk::ToolResult`
 - Reference: Design doc "AgentLoop Task" → "execute_tools()"
 
-[ ] **Task 4.1.8**: Update `AgentLoop::run()` to set completion state metadata
+[x] **Task 4.1.8**: Update `AgentLoop::run()` to set completion state metadata
 - At end of run(), before returning
 - If tool approval needed: set metadata to "completed_with_tool_request"
 - If normal completion: set metadata to "completed_ready_for_prompt"
 - Use `worker.set_task_metadata()` with `task_metadata_keys::AGENT_LOOP_COMPLETION_STATE`
 - Reference: Design doc "AgentLoop Task" → "Completion States"
 
-[ ] **Task 4.1.9**: Update Session to pass EventBus to AgentLoop
+[x] **Task 4.1.9**: Update Session to pass EventBus to AgentLoop
 - In `Session::run_task__agent_loop()`
 - Pass `self.event_bus.clone()` to `AgentLoop::new()`
 - Reference: Design doc "Session" → "run_task__agent_loop()"
 
-[ ] **Task 4.1.10**: Run `cargo check` to verify AgentLoop changes compile
+[x] **Task 4.1.10**: Run `cargo check` to verify AgentLoop changes compile
 - Fix any compilation errors
 - Ensure AgentLoop publishes events correctly
 
 ### 4.2 Remove Deprecated WorkerToHostInterface
 
-[ ] **Task 4.2.1**: Remove `crates/chat-cli/src/agent_env/worker_interface.rs` file
+[x] **Task 4.2.1**: Remove `crates/chat-cli/src/agent_env/worker_interface.rs` file
 - Delete the file entirely
 - Reference: Design doc "Phase 4: Task Event Publishing" → "Files to Remove"
 
-[ ] **Task 4.2.2**: Remove worker_interface module from `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 4.2.2**: Remove worker_interface module from `crates/chat-cli/src/agent_env/mod.rs`
 - Remove `pub mod worker_interface;` declaration
 - Remove any re-exports of WorkerToHostInterface
 
-[ ] **Task 4.2.3**: Update demo code to remove WorkerToHostInterface usage
+[x] **Task 4.2.3**: Update demo code to remove WorkerToHostInterface usage
 - In `crates/chat-cli/src/agent_env/demo/`
 - Remove any references to WorkerToHostInterface
 - Update to use EventBus instead
 
-[ ] **Task 4.2.4**: Run `cargo check` to verify removal is clean
+[x] **Task 4.2.4**: Run `cargo check` to verify removal is clean
 - Fix any remaining references to WorkerToHostInterface
 - Ensure code compiles without the interface
 
@@ -498,74 +498,74 @@
 
 ### 5.1 Create Command Type Definitions
 
-[ ] **Task 5.1.1**: Create `crates/chat-cli/src/agent_env/commands.rs` with basic structure
+[x] **Task 5.1.1**: Create `crates/chat-cli/src/agent_env/commands.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports: `uuid::Uuid`, `serde::{Serialize, Deserialize}`
 - Reference: Design doc "Command System"
 
-[ ] **Task 5.1.2**: Implement `AgentEnvironmentCommand` enum
+[x] **Task 5.1.2**: Implement `AgentEnvironmentCommand` enum
 - Add variants: `Prompt { worker_id: Uuid, text: String }`, `Compact { worker_id: Uuid, instruction: Option<String> }`, `Quit`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Command System" → "AgentEnvironmentCommand"
 
-[ ] **Task 5.1.3**: Implement `UiCommand` enum
+[x] **Task 5.1.3**: Implement `UiCommand` enum
 - Add variants: `Usage`, `Context`, `Status`, `Workers`
 - Add `#[derive(Debug, Clone)]`
 - Add comment: "UI-specific commands can be added by implementations"
 - Reference: Design doc "Command System" → "UiCommand"
 
-[ ] **Task 5.1.4**: Implement `Command` enum
+[x] **Task 5.1.4**: Implement `Command` enum
 - Add variants: `Agent(AgentEnvironmentCommand)`, `Ui(UiCommand)`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Command System" → "Command"
 
-[ ] **Task 5.1.5**: Implement `PromptResult` enum
+[x] **Task 5.1.5**: Implement `PromptResult` enum
 - Add variants: `Command(AgentEnvironmentCommand)`, `Shutdown`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Command System" → "PromptResult"
 
-[ ] **Task 5.1.6**: Add commands module to `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 5.1.6**: Add commands module to `crates/chat-cli/src/agent_env/mod.rs`
 - Add `pub mod commands;` declaration
 - Add re-exports: `pub use commands::*;`
 
-[ ] **Task 5.1.7**: Run `cargo check` to verify commands module compiles
+[x] **Task 5.1.7**: Run `cargo check` to verify commands module compiles
 - Fix any compilation errors
 - Ensure all command types are properly exported
 
 ### 5.2 Create Command Parser
 
-[ ] **Task 5.2.1**: Add `ParseError` type to commands.rs
+[x] **Task 5.2.1**: Add `ParseError` type to commands.rs
 - Add enum with variant: `UnknownCommand(String)`
 - Add `#[derive(Debug, Clone)]`
 - Implement `std::fmt::Display` trait
 - Implement `std::error::Error` trait
 
-[ ] **Task 5.2.2**: Create `CommandParser` struct in commands.rs
+[x] **Task 5.2.2**: Create `CommandParser` struct in commands.rs
 - Add empty struct: `pub struct CommandParser;`
 - Reference: Design doc "Command Parser"
 
-[ ] **Task 5.2.3**: Implement `CommandParser::parse()` method - basic structure
+[x] **Task 5.2.3**: Implement `CommandParser::parse()` method - basic structure
 - Accept `input: &str` parameter
 - Return `Result<Command, ParseError>`
 - Trim input
 - Check if starts with '/'
 - Reference: Design doc "Command Parser"
 
-[ ] **Task 5.2.4**: Implement explicit command parsing
+[x] **Task 5.2.4**: Implement explicit command parsing
 - Split command and arguments: `splitn(2, ' ')`
 - Match on command name: "quit", "q", "compact", "usage", "context", "status", "workers"
 - Return appropriate Command variant
 - Return `ParseError::UnknownCommand` for unknown commands
 - Reference: Design doc "Command Parser"
 
-[ ] **Task 5.2.5**: Implement implicit prompt command parsing
+[x] **Task 5.2.5**: Implement implicit prompt command parsing
 - If input doesn't start with '/', treat as prompt
 - Return `Command::Agent(AgentEnvironmentCommand::Prompt { worker_id: Uuid::nil(), text: trimmed.to_string() })`
 - Note: worker_id will be filled by UI
 - Reference: Design doc "Command Parser"
 
-[ ] **Task 5.2.6**: Run `cargo check` to verify CommandParser compiles
+[x] **Task 5.2.6**: Run `cargo check` to verify CommandParser compiles
 - Fix any compilation errors
 - Ensure parser works correctly
 
@@ -611,30 +611,30 @@
 
 ### 5.4 Write Tests for Command System
 
-[ ] **Task 5.4.1**: Add test module to commands.rs
+[x] **Task 5.4.1**: Add test module to commands.rs
 - Add `#[cfg(test)]` module
 - Test parsing explicit commands: "/quit", "/q", "/compact", "/usage", etc.
 - Verify correct Command variants are returned
 
-[ ] **Task 5.4.2**: Add test for implicit prompt parsing
+[x] **Task 5.4.2**: Add test for implicit prompt parsing
 - Test input without '/' prefix
 - Verify `Command::Agent(Prompt)` is returned
 - Verify text is preserved correctly
 
-[ ] **Task 5.4.3**: Add test for unknown command error
+[x] **Task 5.4.3**: Add test for unknown command error
 - Test "/unknown_command"
 - Verify `ParseError::UnknownCommand` is returned
 
-[ ] **Task 5.4.4**: Add test for compact command with instruction
+[x] **Task 5.4.4**: Add test for compact command with instruction
 - Test "/compact summarize briefly"
 - Verify instruction is captured correctly
 
-[ ] **Task 5.4.5**: Add tests for ui_utils functions
+[x] **Task 5.4.5**: Add tests for ui_utils functions
 - Test `calculate_token_usage()` with mock worker
 - Test `format_context_info()` with mock worker
 - Verify output is correct
 
-[ ] **Task 5.4.6**: Run `cargo test` to verify all tests pass
+[x] **Task 5.4.6**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure command parsing works correctly
 
@@ -1464,8 +1464,8 @@ The implementation is complete when:
 - [x] Phase 1: Core Event System (27/27 tasks) ✅
 - [x] Phase 2: Worker State Management (15/15 tasks) ✅
 - [x] Phase 3: Session Event Publishing (11/11 tasks) ✅
-- [ ] Phase 4: Task Event Publishing (0/14 tasks)
-- [ ] Phase 5: Command System (0/22 tasks)
+- [x] Phase 4: Task Event Publishing (14/14 tasks) ✅
+- [~] Phase 5: Command System (13/22 tasks - 59%) 🚧
 - [ ] Phase 6: AgentEnvironment Coordinator (0/32 tasks)
 - [ ] Phase 7: TextUi Implementation (0/26 tasks)
 - [ ] Phase 8: Entry Point Integration (0/24 tasks)
@@ -1473,7 +1473,7 @@ The implementation is complete when:
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 53 / 215 tasks (24.7%)
+**Total Progress**: 80 / 215 tasks (37.2%)
 
 ---
 
