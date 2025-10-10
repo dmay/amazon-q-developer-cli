@@ -571,41 +571,41 @@
 
 ### 5.3 Create UI Utilities
 
-[ ] **Task 5.3.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/ui_utils.rs` with basic structure
+[x] **Task 5.3.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/ui_utils.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports for Worker, ConversationEntry, etc.
 - Reference: Design doc "Shared UI Utilities"
 
-[ ] **Task 5.3.2**: Implement `TokenUsage` struct
+[x] **Task 5.3.2**: Implement `TokenUsage` struct
 - Add fields: `input_tokens: usize`, `output_tokens: usize`, `total_tokens: usize`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Shared UI Utilities" → "TokenUsage"
 
-[ ] **Task 5.3.3**: Implement `estimate_tokens()` helper function
+[x] **Task 5.3.3**: Implement `estimate_tokens()` helper function
 - Accept `text: &str` parameter
 - Return `usize`
 - Simple estimation: `text.len() / 4`
 - Reference: Design doc "Shared UI Utilities" → "estimate_tokens()"
 
-[ ] **Task 5.3.4**: Implement `calculate_token_usage()` function
+[x] **Task 5.3.4**: Implement `calculate_token_usage()` function
 - Accept `worker: &Worker` parameter
 - Return `TokenUsage`
 - Lock conversation history
 - Iterate entries and sum tokens
 - Reference: Design doc "Shared UI Utilities" → "calculate_token_usage()"
 
-[ ] **Task 5.3.5**: Implement `format_context_info()` function
+[x] **Task 5.3.5**: Implement `format_context_info()` function
 - Accept `worker: &Worker` parameter
 - Return `String`
 - Format worker name, message count, lifecycle state
 - Reference: Design doc "Shared UI Utilities" → "format_context_info()"
 
-[ ] **Task 5.3.6**: Add ui_utils module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
+[x] **Task 5.3.6**: Add ui_utils module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
 - Add `pub mod ui_utils;` declaration
 - Add re-exports as needed
 
-[ ] **Task 5.3.7**: Run `cargo check` to verify ui_utils module compiles
+[x] **Task 5.3.7**: Run `cargo check` to verify ui_utils module compiles
 - Fix any compilation errors
 - Ensure utilities are usable
 
@@ -1465,7 +1465,7 @@ The implementation is complete when:
 - [x] Phase 2: Worker State Management (15/15 tasks) ✅
 - [x] Phase 3: Session Event Publishing (11/11 tasks) ✅
 - [x] Phase 4: Task Event Publishing (14/14 tasks) ✅
-- [~] Phase 5: Command System (13/22 tasks - 59%) 🚧
+- [x] Phase 5: Command System (22/22 tasks) ✅
 - [ ] Phase 6: AgentEnvironment Coordinator (0/32 tasks)
 - [ ] Phase 7: TextUi Implementation (0/26 tasks)
 - [ ] Phase 8: Entry Point Integration (0/24 tasks)
@@ -1473,7 +1473,7 @@ The implementation is complete when:
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 80 / 215 tasks (37.2%)
+**Total Progress**: 89 / 215 tasks (41.4%)
 
 ---
 

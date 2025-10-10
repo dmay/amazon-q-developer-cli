@@ -476,3 +476,60 @@ test result: ok. 3 passed (event_bus)
 - Task 5.3 (UI Utilities) - will be implemented in Phase 7 when TextUi needs them
 
 **Next phase**: Phase 6 - AgentEnvironment Coordinator
+
+
+### Phase 5.3: Create UI Utilities ✅
+
+**Completed**: October 9, 2025 21:07 PDT
+
+**Tasks completed**:
+- ✅ Task 5.3.1-5.3.7: All UI utilities implementation
+
+**Actions taken**:
+1. Created `crates/chat-cli/src/cli/chat/agent_env_ui/ui_utils.rs` with complete utilities:
+   - `TokenUsage` struct with input/output/total token counts
+   - `estimate_tokens()` function using simple 4 chars per token estimation
+   - `calculate_token_usage()` function that iterates conversation history
+   - `format_context_info()` function that formats worker information
+2. Fixed import issues:
+   - Initially tried to use `HistoryEntry` from conversation module (wrong type)
+   - Corrected to use `ConversationEntry` from context_container module
+   - Used `UserMessage::prompt()` and `AssistantMessage::content()` methods
+3. Added comprehensive test coverage (5 tests):
+   - test_estimate_tokens: Verifies token estimation logic
+   - test_calculate_token_usage_empty: Tests with empty history
+   - test_calculate_token_usage_with_messages: Tests with actual messages
+   - test_format_context_info: Tests context formatting
+   - test_format_context_info_busy_state: Tests with different worker states
+4. Fixed test code to match Worker struct:
+   - Added missing `state` and `last_failure` fields wrapped in Arc<Mutex<>>
+   - Used `AssistantMessage::new_response()` for creating test messages
+5. Added ui_utils module to `agent_env_ui/mod.rs` with re-exports
+6. All tests pass successfully
+
+**Files created**:
+- Created: `crates/chat-cli/src/cli/chat/agent_env_ui/ui_utils.rs`
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
+
+**Test results**: ✅ 5 passed; 0 failed
+
+**Status**: ✅ Complete - Phase 5 (Command System) fully implemented and tested
+
+---
+
+## Phase 5 Summary
+
+**Total tasks completed**: 22/22 (100%)
+**Overall progress**: 89/215 tasks (41.4%)
+
+**What was built**:
+- Complete command type hierarchy (AgentEnvironmentCommand, UiCommand, Command, PromptResult)
+- Command parser with explicit and implicit command support
+- UI utilities for token usage calculation and context formatting
+- Comprehensive test coverage for all functionality
+
+**Next phase**: Phase 6 - AgentEnvironment Coordinator
+
+---
