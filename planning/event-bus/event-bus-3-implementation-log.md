@@ -163,3 +163,126 @@ test result: ok. 3 passed (event_bus)
 **Next phase**: Phase 2 - Worker State Management
 
 ---
+
+
+### Phase 2.1: Update Worker Structure ✅
+
+**Completed**: October 9, 2025 20:11 PDT
+
+**Tasks completed**:
+- ✅ Task 2.1.1-2.1.10: All Worker structure updates
+
+**Actions taken**:
+1. Added serde imports and derives to Worker struct
+2. Added `lifecycle_state: Arc<Mutex<WorkerLifecycleState>>` field
+3. Added `task_metadata: HashMap<String, serde_json::Value>` field
+4. Marked non-serializable fields with `#[serde(skip, default = "...")]`
+5. Implemented metadata helper methods:
+   - `set_task_metadata(key, value)`
+   - `get_task_metadata(key) -> Option<&Value>`
+   - `get_task_metadata_string(key) -> Option<String>`
+6. Created `task_metadata_keys` module with constants:
+   - `AGENT_LOOP_COMPLETION_STATE`
+   - `AGENT_LOOP_LAST_TOOL`
+   - `COMPACT_LAST_RUN`
+7. Fixed serde deserialization issues:
+   - Added `Default` derive to `WorkerLifecycleState` enum
+   - Added `Default` derive to `WorkerStates` enum
+   - Added `Serialize/Deserialize` to `ContextContainer`
+   - Added default functions for skipped fields
+8. Verified compilation with `cargo check` - successful
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/worker.rs`
+- Modified: `crates/chat-cli/src/agent_env/events.rs`
+- Modified: `crates/chat-cli/src/agent_env/context_container/context_container.rs`
+
+**Status**: ✅ Complete - Worker now supports lifecycle state, task metadata, and serialization
+
+**Next task**: Task 2.2.1 - Add Worker Lifecycle State Management to Session
+
+
+### Phase 2.2: Add Worker Lifecycle State Management to Session ✅
+
+**Completed**: October 9, 2025 20:13 PDT
+
+**Tasks completed**:
+- ✅ Task 2.2.1-2.2.4: All Session lifecycle state management
+
+**Actions taken**:
+1. Added necessary imports to session.rs:
+   - `std::time::Instant`
+   - `uuid::Uuid`
+   - `AgentEnvironmentEvent`, `WorkerEvent`, `WorkerLifecycleState`
+2. Implemented `set_worker_lifecycle_state()` method:
+   - Finds worker by ID
+   - Gets old state from worker
+   - Updates lifecycle_state
+   - Publishes `WorkerEvent::LifecycleStateChanged` event
+3. Updated `build_worker()` to publish `WorkerEvent::Created` event
+4. Implemented `delete_worker()` method:
+   - Cancels worker jobs
+   - Removes worker from list
+   - Publishes `WorkerEvent::Deleted` event
+5. Added helper methods:
+   - `get_worker(worker_id)` - Get worker by ID
+   - `cancel_worker_jobs(worker_id)` - Cancel all jobs for a worker
+6. Verified compilation with `cargo check` - successful
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/session.rs`
+
+**Status**: ✅ Complete - Session now manages worker lifecycle state and publishes events
+
+**Next task**: Task 2.3.1 - Write Tests for Worker State Management
+
+
+### Phase 2.3: Write Tests for Worker State Management ✅
+
+**Completed**: October 9, 2025 20:22 PDT
+
+**Tasks completed**:
+- ✅ Task 2.3.1-2.3.5: All Worker state management tests
+
+**Actions taken**:
+1. Created MockModelProvider for testing in both worker.rs and session.rs
+2. Added comprehensive tests to worker.rs:
+   - `test_worker_serialization`: Verifies Worker can be serialized to JSON
+   - `test_worker_deserialization`: Verifies Worker can be deserialized from JSON
+   - `test_task_metadata_operations`: Tests all metadata get/set operations
+   - `test_task_metadata_keys_constants`: Verifies metadata key constants
+3. Added comprehensive tests to session.rs:
+   - `test_worker_creation_publishes_event`: Verifies Created event is published
+   - `test_worker_deletion_publishes_event`: Verifies Deleted event is published
+   - `test_lifecycle_state_transitions`: Tests state transitions and events
+   - `test_multiple_workers_dont_interfere`: Verifies workers are independent
+4. Fixed serialization issues:
+   - Changed `model_provider` from `Arc<dyn ModelProvider>` to `Option<Arc<dyn ModelProvider>>`
+   - Updated agent_loop.rs to handle Option type
+   - Added proper default functions for skipped fields
+5. All 14 agent_env tests pass successfully
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/worker.rs` (added tests)
+- Modified: `crates/chat-cli/src/agent_env/session.rs` (added tests)
+- Modified: `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs` (handle Option)
+
+**Test results**: ✅ 14 passed; 0 failed
+
+**Status**: ✅ Complete - Phase 2 (Worker State Management) fully implemented and tested
+
+---
+
+## Phase 2 Summary
+
+**Total tasks completed**: 15/15 (100%)
+**Overall progress**: 42/215 tasks (19.5%)
+
+**What was built**:
+- Worker struct with lifecycle_state and task_metadata fields
+- Full serialization/deserialization support for Worker
+- Session methods for managing worker lifecycle state
+- Event publishing for all worker lifecycle changes
+- Comprehensive test coverage for all functionality
+
+**Next phase**: Phase 3 - Session Event Publishing

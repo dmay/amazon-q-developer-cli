@@ -5,9 +5,10 @@
 **IMPORTANT** `cargo check` output can become extremely large after major changes, ONLY use temporary file + sub-q to analyze the output for any `cargo check` call
 **IMPORTANT** You MUST use the following command template for the build:
  
- ```
+```
 cd /path/to/package && echo "Build started at: $(date)" && echo "Output file: /tmp/build_output_$(date +%s).txt" && cargo check > /tmp/build_output_$(date +%s).txt 2>&1 && echo "Build completed"
 ```
+
 This template is heavily optimized for this environment!
 
 **VERY IMPORTANT** ALWAYS USE THE BUILD COMMAND AS PROVIDED ABOVE! DO NOT try to make it fancier, DO NOT try to 
@@ -15,6 +16,15 @@ This template is heavily optimized for this environment!
 **EXTREMELY VERY BERRY IMPORTANT** SERIOUSLY. DO NOT modify this command, use it as is!
 
 **SERIOUSLY**, if you try to use `cargo check --package chat_cli 2>&1 | head -100` one more time, I'll delete you and install something else!
+
+## Test process
+
+You can use `cargo test` in the same manner:
+
+```
+cd /path/to/package && echo "Build started at: $(date)" && echo "Output file: /tmp/build_output_$(date +%s).txt" && cargo test --package ... > /tmp/build_output_$(date +%s).txt 2>&1 && echo "Build completed"
+```
+
 
 ## Build analysys process - using simple sub-agent
 

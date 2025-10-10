@@ -67,7 +67,10 @@ impl AgentLoop {
         let worker = self.worker.clone();
         let worker_id = self.worker.id;
         
-        let response = self.worker.model_provider.request(
+        let model_provider = self.worker.model_provider.as_ref()
+            .ok_or_else(|| eyre::eyre!("model_provider not available"))?;
+        
+        let response = model_provider.request(
             request,
             Box::new(move || {
                 worker.set_state(WorkerStates::Receiving);

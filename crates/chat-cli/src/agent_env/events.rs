@@ -12,9 +12,10 @@ use std::time::Instant;
 use uuid::Uuid;
 
 /// Worker lifecycle states (managed by Session)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
 pub enum WorkerLifecycleState {
     /// Worker is idle and ready to accept new jobs
+    #[default]
     Idle,
     /// Worker is currently executing a job
     Busy,

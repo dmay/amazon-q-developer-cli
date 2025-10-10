@@ -205,113 +205,113 @@
 
 ### 2.1 Update Worker Structure
 
-[ ] **Task 2.1.1**: Add serde dependency to Worker in `crates/chat-cli/src/agent_env/worker.rs`
+[x] **Task 2.1.1**: Add serde dependency to Worker in `crates/chat-cli/src/agent_env/worker.rs`
 - Add `use serde::{Serialize, Deserialize};` import
 - Add `#[derive(Serialize, Deserialize)]` to Worker struct
 - Reference: Design doc "Worker" → "Worker struct"
 
-[ ] **Task 2.1.2**: Add `lifecycle_state` field to Worker
+[x] **Task 2.1.2**: Add `lifecycle_state` field to Worker
 - Add field: `lifecycle_state: Arc<Mutex<WorkerLifecycleState>>`
 - Import `std::sync::{Arc, Mutex}`
 - Initialize to `WorkerLifecycleState::Idle` in constructor
 - Add `#[serde(skip)]` attribute (not serializable due to Mutex)
 - Reference: Design doc "Worker" → "Worker struct"
 
-[ ] **Task 2.1.3**: Add `task_metadata` field to Worker
+[x] **Task 2.1.3**: Add `task_metadata` field to Worker
 - Add field: `task_metadata: HashMap<String, serde_json::Value>`
 - Import `std::collections::HashMap`
 - Initialize to empty HashMap in constructor
 - Reference: Design doc "Worker" → "Worker struct"
 
-[ ] **Task 2.1.4**: Mark non-serializable fields with `#[serde(skip)]`
+[x] **Task 2.1.4**: Mark non-serializable fields with `#[serde(skip)]`
 - Add `#[serde(skip)]` to `model_provider` field
 - Add `#[serde(skip)]` to `lifecycle_state` field
 - Reference: Design doc "Worker" → "Worker struct"
 
-[ ] **Task 2.1.5**: Implement `Worker::set_task_metadata()` method
+[x] **Task 2.1.5**: Implement `Worker::set_task_metadata()` method
 - Accept `key: &str` and `value: serde_json::Value` parameters
 - Insert into `self.task_metadata`
 - Reference: Design doc "Worker" → "Type-safe metadata access helpers"
 
-[ ] **Task 2.1.6**: Implement `Worker::get_task_metadata()` method
+[x] **Task 2.1.6**: Implement `Worker::get_task_metadata()` method
 - Accept `key: &str` parameter
 - Return `Option<&serde_json::Value>`
 - Reference: Design doc "Worker" → "Type-safe metadata access helpers"
 
-[ ] **Task 2.1.7**: Implement `Worker::get_task_metadata_string()` method
+[x] **Task 2.1.7**: Implement `Worker::get_task_metadata_string()` method
 - Accept `key: &str` parameter
 - Return `Option<String>`
 - Extract string from JSON value if present
 - Reference: Design doc "Worker" → "Type-safe metadata access helpers"
 
-[ ] **Task 2.1.8**: Create `task_metadata_keys` module in worker.rs
+[x] **Task 2.1.8**: Create `task_metadata_keys` module in worker.rs
 - Add `pub mod task_metadata_keys` at end of file
 - Add constants for known metadata keys
 - Reference: Design doc "Worker" → "Namespaced metadata keys"
 
-[ ] **Task 2.1.9**: Add metadata key constants
+[x] **Task 2.1.9**: Add metadata key constants
 - `AGENT_LOOP_COMPLETION_STATE: &str = "agent_loop.completion_state"`
 - `AGENT_LOOP_LAST_TOOL: &str = "agent_loop.last_tool"`
 - `COMPACT_LAST_RUN: &str = "compact.last_run_timestamp"`
 - Reference: Design doc "Worker" → "Namespaced metadata keys"
 
-[ ] **Task 2.1.10**: Run `cargo check` to verify Worker changes compile
+[x] **Task 2.1.10**: Run `cargo check` to verify Worker changes compile
 - Fix any compilation errors
 - Ensure Worker is still usable in existing code
 
 ### 2.2 Add Worker Lifecycle State Management to Session
 
-[ ] **Task 2.2.1**: Implement `Session::set_worker_lifecycle_state()` method in session.rs
+[x] **Task 2.2.1**: Implement `Session::set_worker_lifecycle_state()` method in session.rs
 - Accept `worker_id: Uuid` and `new_state: WorkerLifecycleState` parameters
 - Get worker from workers map
 - Lock lifecycle_state mutex and update
 - Publish `WorkerEvent::LifecycleStateChanged` event
 - Reference: Design doc "Session" → "set_worker_lifecycle_state()"
 
-[ ] **Task 2.2.2**: Update `Session::build_worker()` to publish Created event
+[x] **Task 2.2.2**: Update `Session::build_worker()` to publish Created event
 - After creating worker and adding to map
 - Publish `WorkerEvent::Created` event with worker_id, name, timestamp
 - Reference: Design doc "Session" → "build_worker()"
 
-[ ] **Task 2.2.3**: Update `Session::delete_worker()` to publish Deleted event
+[x] **Task 2.2.3**: Update `Session::delete_worker()` to publish Deleted event
 - After removing worker from map
 - Publish `WorkerEvent::Deleted` event with worker_id, timestamp
 - Reference: Design doc "Session" → "delete_worker()"
 
-[ ] **Task 2.2.4**: Run `cargo check` to verify Session changes compile
+[x] **Task 2.2.4**: Run `cargo check` to verify Session changes compile
 - Fix any compilation errors
 - Ensure Session methods work correctly
 
 ### 2.3 Write Tests for Worker State Management
 
-[ ] **Task 2.3.1**: Add test for Worker serialization in worker.rs
+[x] **Task 2.3.1**: Add test for Worker serialization in worker.rs
 - Create Worker instance
 - Serialize to JSON using `serde_json::to_string()`
 - Verify serialization succeeds
 - Verify skipped fields are not in JSON
 - Reference: Design doc "Phase 2: Worker State Management" → "Testing"
 
-[ ] **Task 2.3.2**: Add test for Worker deserialization
+[x] **Task 2.3.2**: Add test for Worker deserialization
 - Create JSON string with Worker data
 - Deserialize using `serde_json::from_str()`
 - Verify deserialization succeeds
 - Verify fields are correctly populated
 
-[ ] **Task 2.3.3**: Add test for task metadata operations
+[x] **Task 2.3.3**: Add test for task metadata operations
 - Create Worker
 - Set metadata with `set_task_metadata()`
 - Get metadata with `get_task_metadata()`
 - Get string metadata with `get_task_metadata_string()`
 - Verify all operations work correctly
 
-[ ] **Task 2.3.4**: Add test for lifecycle state transitions in session.rs
+[x] **Task 2.3.4**: Add test for lifecycle state transitions in session.rs
 - Create Session with EventBus
 - Create Worker
 - Subscribe to events
 - Call `set_worker_lifecycle_state()` with different states
 - Verify events are published correctly
 
-[ ] **Task 2.3.5**: Run `cargo test` to verify all tests pass
+[x] **Task 2.3.5**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure test coverage is adequate
 
