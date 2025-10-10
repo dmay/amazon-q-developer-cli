@@ -14,6 +14,7 @@ use super::events::{AgentEnvironmentEvent, WorkerEvent, WorkerLifecycleState};
 /// Maximum number of inactive jobs to keep in memory
 pub const MAX_INACTIVE_JOBS: usize = 3;
 
+#[derive(Clone)]
 pub struct Session {
     event_bus: EventBus,
     model_providers: Vec<Arc<dyn ModelProvider>>,
@@ -59,14 +60,135 @@ impl Session {
         worker
     }
 
-    pub fn run_agent_loop(
+    pub fn run_task__agent_loop(
         &self,
-        _worker: Arc<Worker>,
-        _input: AgentLoopInput,
+        worker: Arc<Worker>,
+        input: AgentLoopInput,
     ) -> Result<Arc<WorkerJob>, eyre::Error> {
-        unimplemented!("run_agent_loop will be reimplemented in EventBus architecture")
+        use super::events::{JobEvent, JobCompletionResult};
+        
+        // Task 3.1.1: Set worker state to Busy
+        self.set_worker_lifecycle_state(worker.id, WorkerLifecycleState::Busy);
+        
+        // Create cancellation token
+        let cancellation_token = CancellationToken::new();
+        
+        // Create task (note: EventBus will be added in Phase 4)
+        let task = AgentLoop::new(
+            worker.clone(),
+            input,
+            cancellation_token.clone(),
+        );
+        
+        // Create job
+        let mut job = WorkerJob::new(
+            worker.clone(),
+            Arc::new(task),
+            cancellation_token,
+        );
+        
+        // Task 3.1.2: Publish JobStarted event
+        self.event_bus.publish(AgentEnvironmentEvent::Job(
+            JobEvent::Started {
+                worker_id: worker.id,
+                job_id: Uuid::new_v4(), // TODO: Add job_id to WorkerJob
+                task_type: "AgentLoop".to_string(),
+                timestamp: Instant::now(),
+            }
+        ));
+        
+        // Launch the job
+        job.launch();
+        
+        let job = Arc::new(job);
+        
+        // Register job
+        self.jobs.lock().unwrap().push(job.clone());
+        
+        // Task 3.1.4: Spawn completion handler
+        let session = self.clone();
+        let job_for_completion = job.clone();
+        let worker_id = worker.id;
+        tokio::spawn(async move {
+            // Wait for job to complete by polling
+            while job_for_completion.is_active() {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            
+            // Get completion state
+            let state = job_for_completion.get_state().await;
+            let result = match state {
+                super::worker_job::JobState::Completed => Ok(()),
+                super::worker_job::JobState::Failed => Err(eyre::eyre!("Job failed")),
+                super::worker_job::JobState::Cancelled => Err(eyre::eyre!("Job cancelled")),
+                _ => Ok(()),
+            };
+            
+            // Task 3.1.3: Handle job completion
+            session.handle_job_completion(worker_id, result).await;
+        });
+        
+        Ok(job)
+    }
+    
+    /// Task 3.1.3: Handle job completion
+    async fn handle_job_completion(
+        &self,
+        worker_id: Uuid,
+        result: Result<(), eyre::Error>,
+    ) {
+        use super::events::{JobEvent, JobCompletionResult};
+        
+        // Get worker to extract task metadata
+        let task_metadata = if let Some(worker) = self.get_worker(worker_id) {
+            worker.task_metadata.clone()
+        } else {
+            std::collections::HashMap::new()
+        };
+        
+        // Determine completion result
+        let completion_result = match result {
+            Ok(_) => {
+                JobCompletionResult::Success { task_metadata }
+            }
+            Err(e) => JobCompletionResult::Failed {
+                error: e.to_string(),
+            },
+        };
+        
+        // Update worker lifecycle state
+        let new_state = match &completion_result {
+            JobCompletionResult::Success { .. } => WorkerLifecycleState::Idle,
+            JobCompletionResult::Failed { .. } => WorkerLifecycleState::IdleFailed,
+            JobCompletionResult::Cancelled => WorkerLifecycleState::Idle,
+        };
+        
+        self.set_worker_lifecycle_state(worker_id, new_state);
+        
+        // Publish completion event
+        self.event_bus.publish(AgentEnvironmentEvent::Job(
+            JobEvent::Completed {
+                worker_id,
+                job_id: Uuid::new_v4(), // TODO: Add job_id to WorkerJob
+                result: completion_result,
+                timestamp: Instant::now(),
+            }
+        ));
+        
+        // Note: Continuations are already run by WorkerJob
     }
 
+    
+    /// Task 3.1.5: Stub for compact conversation task
+    pub fn run_task__compact_conversation(
+        &self,
+        _worker: Arc<Worker>,
+        _instruction: Option<String>,
+    ) -> Result<Arc<WorkerJob>, eyre::Error> {
+        // TODO: Implement in Phase 10
+        unimplemented!("run_task__compact_conversation will be implemented in Phase 10")
+    }
+    
     pub fn cancel_all_jobs(&self) {
         let jobs = self.jobs.lock().unwrap();
         for job in jobs.iter() {
@@ -338,5 +460,108 @@ mod tests {
         // Verify only worker1's state changed
         assert_eq!(*worker1.lifecycle_state.lock().unwrap(), WorkerLifecycleState::Busy);
         assert_eq!(*worker2.lifecycle_state.lock().unwrap(), WorkerLifecycleState::Idle);
+    }
+    
+    #[tokio::test]
+    async fn test_job_lifecycle_events() {
+        use crate::agent_env::events::{JobEvent, JobCompletionResult};
+        
+        let session = create_test_session();
+        let worker = session.build_worker("test_worker".to_string());
+        let worker_id = worker.id;
+        
+        // Subscribe after worker creation to avoid Created event
+        let mut receiver = session.event_bus().subscribe();
+        
+        // Launch agent loop task
+        let input = AgentLoopInput {};
+        let _job = session.run_task__agent_loop(worker.clone(), input)
+            .expect("Failed to launch agent loop");
+        
+        // Verify LifecycleStateChanged to Busy
+        let event = receiver.recv().await.expect("Expected LifecycleStateChanged to Busy");
+        match event {
+            AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged { 
+                worker_id: wid, 
+                new_state, 
+                .. 
+            }) => {
+                assert_eq!(wid, worker_id);
+                assert_eq!(new_state, WorkerLifecycleState::Busy);
+            }
+            _ => panic!("Expected WorkerEvent::LifecycleStateChanged to Busy, got {:?}", event),
+        }
+        
+        // Verify JobStarted event
+        let event = receiver.recv().await.expect("Expected JobStarted");
+        match event {
+            AgentEnvironmentEvent::Job(JobEvent::Started { 
+                worker_id: wid, 
+                task_type, 
+                .. 
+            }) => {
+                assert_eq!(wid, worker_id);
+                assert_eq!(task_type, "AgentLoop");
+            }
+            _ => panic!("Expected JobEvent::Started, got {:?}", event),
+        }
+        
+        // Wait for job to complete (with timeout)
+        let timeout = tokio::time::sleep(Duration::from_secs(5));
+        tokio::pin!(timeout);
+        
+        let mut got_lifecycle_change = false;
+        let mut got_job_completed = false;
+        
+        loop {
+            tokio::select! {
+                result = receiver.recv() => {
+                    match result {
+                        Ok(event) => {
+                            match event {
+                                AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged { 
+                                    worker_id: wid, 
+                                    new_state, 
+                                    .. 
+                                }) if wid == worker_id => {
+                                    // Should transition back to Idle or IdleFailed
+                                    assert!(
+                                        new_state == WorkerLifecycleState::Idle || 
+                                        new_state == WorkerLifecycleState::IdleFailed
+                                    );
+                                    got_lifecycle_change = true;
+                                }
+                                AgentEnvironmentEvent::Job(JobEvent::Completed { 
+                                    worker_id: wid, 
+                                    result, 
+                                    .. 
+                                }) if wid == worker_id => {
+                                    // Verify completion result structure
+                                    match result {
+                                        JobCompletionResult::Success { .. } | 
+                                        JobCompletionResult::Failed { .. } | 
+                                        JobCompletionResult::Cancelled => {
+                                            got_job_completed = true;
+                                        }
+                                    }
+                                }
+                                _ => {} // Ignore other events
+                            }
+                            
+                            if got_lifecycle_change && got_job_completed {
+                                break;
+                            }
+                        }
+                        Err(e) => panic!("Error receiving event: {}", e),
+                    }
+                }
+                _ = &mut timeout => {
+                    panic!("Timeout waiting for job completion events");
+                }
+            }
+        }
+        
+        assert!(got_lifecycle_change, "Did not receive LifecycleStateChanged event");
+        assert!(got_job_completed, "Did not receive JobCompleted event");
     }
 }

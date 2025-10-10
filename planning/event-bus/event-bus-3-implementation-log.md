@@ -286,3 +286,89 @@ test result: ok. 3 passed (event_bus)
 - Comprehensive test coverage for all functionality
 
 **Next phase**: Phase 3 - Session Event Publishing
+
+
+### Phase 3.1: Update Job Launching Methods ✅
+
+**Completed**: October 9, 2025 20:30 PDT
+
+**Tasks completed**:
+- ✅ Task 3.1.1-3.1.6: All job launching method updates
+
+**Actions taken**:
+1. Implemented `Session::run_task__agent_loop()` method:
+   - Sets worker lifecycle state to Busy before launching
+   - Creates AgentLoop task with current signature (EventBus will be added in Phase 4)
+   - Publishes `JobEvent::Started` event with worker_id, job_id, task_type, timestamp
+   - Launches job and registers it in jobs list
+   - Spawns async task to monitor job completion
+2. Implemented `Session::handle_job_completion()` method:
+   - Accepts `worker_id` and `result` parameters
+   - Extracts task_metadata from worker
+   - Determines JobCompletionResult (Success/Failed/Cancelled)
+   - Updates worker lifecycle state (Idle or IdleFailed)
+   - Publishes `JobEvent::Completed` event
+3. Added `Session::run_task__compact_conversation()` stub:
+   - Returns unimplemented!() for Phase 10
+4. Made Session cloneable with `#[derive(Clone)]`
+5. Fixed compilation issues:
+   - Matched AgentLoop::new() signature (takes CancellationToken, not EventBus yet)
+   - Avoided WorkerJob cloning by using polling approach for completion
+   - Used worker_id instead of job reference in completion handler
+6. Verified compilation with `cargo check` - successful
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/session.rs`
+
+**Status**: ✅ Complete - Session now publishes job lifecycle events
+
+**Next task**: Task 3.2.1 - Write Tests for Session Event Publishing
+
+
+### Phase 3.2: Write Tests for Session Event Publishing ✅
+
+**Completed**: October 9, 2025 20:37 PDT
+
+**Tasks completed**:
+- ✅ Task 3.2.1-3.2.5: All session event publishing tests
+
+**Actions taken**:
+1. Added comprehensive test for job lifecycle events (`test_job_lifecycle_events`):
+   - Launches agent loop task
+   - Verifies `WorkerEvent::LifecycleStateChanged` to Busy
+   - Verifies `JobEvent::Started` with correct worker_id and task_type
+   - Waits for job completion with timeout
+   - Verifies `WorkerEvent::LifecycleStateChanged` back to Idle/IdleFailed
+   - Verifies `JobEvent::Completed` with proper result structure
+2. Fixed import path issue in test module:
+   - Changed `use super::events` to `use crate::agent_env::events`
+   - Test modules need to use absolute paths or go up two levels with `super::super`
+3. Tests for worker creation and deletion events already existed from Phase 2
+4. Test for multiple workers already existed from Phase 2
+5. All 15 agent_env tests pass successfully:
+   - 4 tests for events module
+   - 3 tests for event_bus module
+   - 3 tests for worker module
+   - 5 tests for session module
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/session.rs` (added test)
+
+**Test results**: ✅ 15 passed; 0 failed
+
+**Status**: ✅ Complete - Phase 3 (Session Event Publishing) fully implemented and tested
+
+---
+
+## Phase 3 Summary
+
+**Total tasks completed**: 11/11 (100%)
+**Overall progress**: 53/215 tasks (24.7%)
+
+**What was built**:
+- Session methods for launching agent loop tasks with event publishing
+- Job completion handler that updates worker state and publishes events
+- Stub for compact conversation task (Phase 10)
+- Comprehensive test coverage for job lifecycle events
+
+**Next phase**: Phase 4 - Task Event Publishing

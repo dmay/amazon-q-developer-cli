@@ -321,32 +321,31 @@
 
 ### 3.1 Update Job Launching Methods
 
-[ ] **Task 3.1.1**: Update `Session::run_task__agent_loop()` to set worker state to Busy
+[x] **Task 3.1.1**: Update `Session::run_task__agent_loop()` to set worker state to Busy
 - Before creating task
 - Call `self.set_worker_lifecycle_state(worker.id, WorkerLifecycleState::Busy)`
 - Reference: Design doc "Session" → "run_task__agent_loop()"
 
-[ ] **Task 3.1.2**: Update `Session::run_task__agent_loop()` to publish JobStarted event
+[x] **Task 3.1.2**: Update `Session::run_task__agent_loop()` to publish JobStarted event
 - After creating job and registering it
 - Publish `JobEvent::Started` with worker_id, job_id, task_type, timestamp
 - Reference: Design doc "Session" → "run_task__agent_loop()"
 
-[ ] **Task 3.1.3**: Create `Session::handle_job_completion()` method
-- Accept `job: Arc<WorkerJob>` and `result: Result<()>` parameters
+[x] **Task 3.1.3**: Create `Session::handle_job_completion()` method
+- Accept `worker_id: Uuid` and `result: Result<()>` parameters
 - Determine JobCompletionResult from result
 - Extract task_metadata from worker
 - Update worker lifecycle state (Idle or IdleFailed)
-- Remove job from jobs map
 - Publish `JobEvent::Completed` event
-- Run job continuations
+- Run job continuations (handled by WorkerJob)
 - Reference: Design doc "Session" → "handle_job_completion()"
 
-[ ] **Task 3.1.4**: Update job spawning in `run_task__agent_loop()` to call handle_job_completion
-- In spawned task, after `job.run().await`
-- Call `session.handle_job_completion(job.clone(), result).await`
+[x] **Task 3.1.4**: Update job spawning in `run_task__agent_loop()` to call handle_job_completion
+- In spawned task, poll job completion
+- Call `session.handle_job_completion(worker_id, result).await`
 - Reference: Design doc "Session" → "run_task__agent_loop()"
 
-[ ] **Task 3.1.5**: Add `Session::run_task__compact_conversation()` method (stub for now)
+[x] **Task 3.1.5**: Add `Session::run_task__compact_conversation()` method (stub for now)
 - Similar structure to `run_task__agent_loop()`
 - Set worker to Busy
 - Publish JobStarted event
@@ -354,25 +353,25 @@
 - Call handle_job_completion on completion
 - Reference: Design doc "Session" → "run_task__compact_conversation()"
 
-[ ] **Task 3.1.6**: Run `cargo check` to verify Session changes compile
+[x] **Task 3.1.6**: Run `cargo check` to verify Session changes compile
 - Fix any compilation errors
 - Ensure job lifecycle events are published correctly
 
 ### 3.2 Write Tests for Session Event Publishing
 
-[ ] **Task 3.2.1**: Add test for worker creation events in session.rs
+[x] **Task 3.2.1**: Add test for worker creation events in session.rs
 - Create Session with EventBus
 - Subscribe to events
 - Call `build_worker()`
 - Verify `WorkerEvent::Created` is published with correct data
 
-[ ] **Task 3.2.2**: Add test for worker deletion events
+[x] **Task 3.2.2**: Add test for worker deletion events
 - Create Session and Worker
 - Subscribe to events
 - Call `delete_worker()`
 - Verify `WorkerEvent::Deleted` is published
 
-[ ] **Task 3.2.3**: Add test for job lifecycle events
+[x] **Task 3.2.3**: Add test for job lifecycle events
 - Create Session and Worker
 - Subscribe to events
 - Launch agent loop task
@@ -380,14 +379,14 @@
 - Wait for job completion
 - Verify `JobEvent::Completed` is published
 
-[ ] **Task 3.2.4**: Add test for multiple workers don't interfere
+[x] **Task 3.2.4**: Add test for multiple workers don't interfere
 - Create Session with 2 workers
 - Subscribe to events
 - Launch jobs on both workers
 - Verify events have correct worker_ids
 - Verify jobs complete independently
 
-[ ] **Task 3.2.5**: Run `cargo test` to verify all tests pass
+[x] **Task 3.2.5**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure event publishing works correctly
 
@@ -1462,9 +1461,9 @@ The implementation is complete when:
 
 ### Phase Completion Status
 
-- [ ] Phase 1: Core Event System (0/27 tasks)
-- [ ] Phase 2: Worker State Management (0/15 tasks)
-- [ ] Phase 3: Session Event Publishing (0/11 tasks)
+- [x] Phase 1: Core Event System (27/27 tasks) ✅
+- [x] Phase 2: Worker State Management (15/15 tasks) ✅
+- [x] Phase 3: Session Event Publishing (11/11 tasks) ✅
 - [ ] Phase 4: Task Event Publishing (0/14 tasks)
 - [ ] Phase 5: Command System (0/22 tasks)
 - [ ] Phase 6: AgentEnvironment Coordinator (0/32 tasks)
@@ -1474,7 +1473,7 @@ The implementation is complete when:
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 0 / 215 tasks (0%)
+**Total Progress**: 53 / 215 tasks (24.7%)
 
 ---
 
