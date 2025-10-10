@@ -629,5 +629,37 @@ Read the following files - new architecture proposal:
 
 Your goal is to update exisrting documentation in codebase/agent-environment and codebase/chat-cli folder.
 
+----
+
+# ✅ MVP - pre-planning
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-0-scope.md
+
+Your goal is to help me plan the implementation of the requirements for the MCP.
+I need a list of large tasks, each broken down to actionable tasks that can be taken on by an AI assistant.
+Some of the tasks can not be tech-designed right away, and need research-analysys-plan stages before.
+
+Write following files:
+- planning/mvp/mvp-1-detailed-scope.md - structured explanation of the bigger and smaller tasks, whatever information about them you can find, various solution options where available
+- planning/mvp/mvp-2-scope-processing-plan.md - Task list to process. The result of those tasks are either implementation of smaller tasks, or plan & design bor bigger tasks (those will be converted into their own implementation plans separately)
+
+
+## Corrections
+
+- planning/mvp/mvp-1-detailed-scope.md
+    - 1.1 Support --no-interactive in Both UIs
+        - "3. Add flag to Worker metadata for task completion behavior" - the flag should be on the AgentEnvoronment level, and it shoudl only initiate shutdown whwn "no more active jobs running", but after the initial job(s) were created in the entry point
+    - 1.2 AgentLoop - History Accumulation
+        - expand with "sending whole history in the model request"
+    - 1.6 StructuredIO Enhancements
+        - "- Ensure proper quit command handling with `{"command":"quit"}`" - it could be that we need to replace `lines.next_line()` with some more adwanced interruptable input method
 
 ----
