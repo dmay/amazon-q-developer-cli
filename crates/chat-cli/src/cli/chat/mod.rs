@@ -198,6 +198,17 @@ pub enum WrapMode {
     Auto,
 }
 
+/// UI mode selection
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum UiMode {
+    /// Text-based interactive UI with readline-style input
+    Text,
+    /// Structured JSON I/O for scripting and automation
+    Structured,
+    /// Headless mode with no UI (for background processing)
+    None,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Args)]
 pub struct ChatArgs {
     /// Resumes the previous conversation from this directory.
@@ -224,6 +235,9 @@ pub struct ChatArgs {
     /// Control line wrapping behavior (default: auto-detect)
     #[arg(short = 'w', long, value_enum)]
     pub wrap: Option<WrapMode>,
+    /// UI mode to use (text, structured, or none)
+    #[arg(long = "ui-mode", value_enum)]
+    pub ui_mode: Option<UiMode>,
 }
 
 impl ChatArgs {
@@ -232,7 +246,7 @@ impl ChatArgs {
             EventBus, Session, AgentEnvironment,
             model_providers::BedrockConverseStreamModelProvider,
         };
-        use crate::cli::chat::agent_env_ui::TextUi;
+        use crate::cli::chat::agent_env_ui::{TextUi, StructuredIO};
         use aws_config::BehaviorVersion;
         use aws_sdk_bedrockruntime::Client as BedrockClient;
         use aws_types::region::Region;
@@ -266,19 +280,43 @@ impl ChatArgs {
                 .push_input_message(initial_input.clone());
         }
         
-        // Task 8.1.5: Create TextUi
-        let history_path = directories::chat_cli_bash_history_path(os).ok();
-        let text_ui = TextUi::new(
-            session.clone(),
-            main_worker_id,
-            history_path,
-        )?;
+        // Task 9.3.2: Select UI based on ui_mode
+        let ui_mode = self.ui_mode.unwrap_or_else(|| {
+            // Default: use Text mode unless --no-interactive is set
+            if self.no_interactive {
+                UiMode::None
+            } else {
+                UiMode::Text
+            }
+        });
+        
+        let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = match ui_mode {
+            UiMode::Text => {
+                let history_path = directories::chat_cli_bash_history_path(os).ok();
+                let text_ui = TextUi::new(
+                    session.clone(),
+                    main_worker_id,
+                    history_path,
+                )?;
+                Some(Arc::new(text_ui))
+            }
+            UiMode::Structured => {
+                let structured_io = StructuredIO::new(
+                    session.clone(),
+                    main_worker_id,
+                )?;
+                Some(Arc::new(structured_io))
+            }
+            UiMode::None => {
+                None // Headless mode
+            }
+        };
         
         // Task 8.1.6: Create AgentEnvironment
         let agent_env = AgentEnvironment::new(
             session.clone(),
             event_bus.clone(),
-            Some(Arc::new(text_ui)),
+            main_ui,
             vec![], // No headless UIs for now
         );
         
@@ -293,7 +331,9 @@ impl ChatArgs {
         }
         
         // Task 8.1.8: Run AgentEnvironment
+        tracing::info!("Starting AgentEnvironment main loop");
         agent_env.run().await?;
+        tracing::info!("AgentEnvironment main loop exited, returning from execute()");
         
         Ok(ExitCode::SUCCESS)
     }

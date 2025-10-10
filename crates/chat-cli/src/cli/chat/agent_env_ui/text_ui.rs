@@ -151,6 +151,7 @@ impl TextUi {
 impl crate::agent_env::UserInterface for TextUi {
     async fn start(&self) -> Result<(), eyre::Error> {
         // Spawn prompt loop task
+        tracing::info!("TextUi: Starting prompt loop");
         self.spawn_prompt_loop();
         
         // Check if worker is already Idle and signal prompt_ready if so
@@ -158,6 +159,7 @@ impl crate::agent_env::UserInterface for TextUi {
             .ok_or_else(|| eyre::eyre!("Worker not found"))?;
         let current_state = *worker.lifecycle_state.lock().unwrap();
         if current_state == WorkerLifecycleState::Idle {
+            tracing::info!("TextUi: Worker is idle, enabling prompt");
             self.prompt_ready.notify_one();
         }
         

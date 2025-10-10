@@ -47,3 +47,10 @@
 
 **Files modified**:
 - `crates/chat-cli/src/agent_env/agent_environment.rs`
+
+## [ ] 5. StructuredIO does not terminate input request on quit command
+When user enters `{"command":"quit"}` it does send termination signals around, but leaves input request active - user has to press enter one more time to exit the app
+
+Review control flow in StructuredIO, compare to TextUi.
+
+Propose possible solutions before implementing them.

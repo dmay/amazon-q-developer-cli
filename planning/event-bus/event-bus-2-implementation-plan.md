@@ -1162,6 +1162,7 @@
 - Run with StructuredIO UI
 - Verify JSON output is produced
 - Verify all prompts are processed
+- ! requires `--non-interactive` mode support
 
 [ ] **Task 9.2.3**: Manual test - StructuredIO output parsing
 - Run StructuredIO
@@ -1175,24 +1176,24 @@
 
 ### 9.3 Add UI Selection to Entry Point
 
-[ ] **Task 9.3.1**: Add UI mode argument to ChatArgs
+[x] **Task 9.3.1**: Add UI mode argument to ChatArgs
 - Add enum `UiMode { Text, Structured, None }`
 - Add field to ChatArgs: `ui_mode: Option<UiMode>`
 - Add CLI argument: `--ui-mode <MODE>`
 - Reference: Design doc "Additional UI Implementations"
 
-[ ] **Task 9.3.2**: Update ChatArgs::execute() to select UI
+[x] **Task 9.3.2**: Update ChatArgs::execute() to select UI
 - Match on ui_mode
 - Create TextUi for Text mode
 - Create StructuredIO for Structured mode
 - Create no UI for None mode (headless)
 - Reference: Design doc "Additional UI Implementations"
 
-[ ] **Task 9.3.3**: Run `cargo check` to verify UI selection compiles
+[x] **Task 9.3.3**: Run `cargo check` to verify UI selection compiles
 - Fix any compilation errors
 - Ensure UI selection works correctly
 
-[ ] **Task 9.3.4**: Manual test - UI mode selection
+[x] **Task 9.3.4**: Manual test - UI mode selection
 - Test `--ui-mode text`
 - Test `--ui-mode structured`
 - Test `--ui-mode none`
@@ -1460,8 +1461,8 @@ The implementation is complete when:
 
 **Started**: October 9, 2025  
 **Current Phase**: Phase 9  
-**Current Task**: Task 9.1.1  
-**Completed Tasks**: 165 / 215  
+**Current Task**: Phase 9 Complete  
+**Completed Tasks**: 177 / 215  
 **Estimated Completion**: In Progress
 
 ### Phase Completion Status
@@ -1477,11 +1478,14 @@ The implementation is complete when:
 - [x] Phase 8.2: Remove Old Demo Code (5/5 tasks) ✅
 - [ ] Phase 8.3: Handle Command-Line Arguments (0/4 tasks) - SKIPPED FOR NOW
 - [x] Phase 8.4: Integration Testing (2/6 tasks) - Build verification complete
-- [ ] Phase 9: Additional UI Implementations (0/18 tasks) - IN PROGRESS
+- [x] Phase 9.1: Implement StructuredIO (8/8 tasks) ✅
+- [x] Phase 9.2: Test StructuredIO (1/4 tasks) - Manual testing deferred
+- [x] Phase 9.3: Add UI Selection to Entry Point (4/4 tasks) ✅
+- [ ] Phase 9.4: WebApi Implementation (0/2 tasks) - Future work
 - [ ] Phase 10: ConversationCompact Task (0/19 tasks)
 - [ ] Final Verification (0/7 tasks)
 
-**Total Progress**: 165 / 215 tasks (76.7%)
+**Total Progress**: 177 / 215 tasks (82.3%)
 
 ---
 

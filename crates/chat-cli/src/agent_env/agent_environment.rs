@@ -222,6 +222,8 @@ impl AgentEnvironment {
         tracing::info!("Shutting down AgentEnvironment");
         multicast_handle.abort();
         self.session.cancel_all_jobs();
+        
+        tracing::info!("AgentEnvironment cleanup complete, returning");
 
         Ok(())
     }

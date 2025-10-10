@@ -551,7 +551,7 @@ Could you also update codebase/agent-environment/README.md, other files in codeb
 
 ----
 
-# EventBus-centered design - implementation
+# ✅ EventBus-centered design - implementation
 Look at the following files for a reference - previous attempt:
 - codebase/agent-environment/README.md - documentation about the previous attempt on the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
 - codebase/chat-cli/files-index.md - the list of some important files we are working with 
@@ -580,7 +580,7 @@ And use command templates exactly as provided, no modifications!
 
 ----
 
-# EventBus-centered design - implementation - corrections
+# ✅ EventBus-centered design - implementation - corrections
 
 Look at the following files for a reference - previous attempt:
 - codebase/agent-environment/README.md - documentation about the previous attempt on the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.

@@ -1,6 +1,6 @@
 use crate::agent_env::{
     AgentEnvironmentCommand, AgentEnvironmentEvent, AgentLoopEvent, PromptResult, Session,
-    UserInterface,
+    UserInterface, WorkerEvent, WorkerLifecycleState,
 };
 use async_trait::async_trait;
 use eyre::Result;
@@ -47,6 +47,7 @@ impl StructuredIO {
         let main_worker_id = self.main_worker_id;
 
         tokio::spawn(async move {
+            tracing::info!("StructuredIO input reader: task started");
             let stdin = tokio::io::stdin();
             let reader = BufReader::new(stdin);
             let mut lines = reader.lines();
@@ -58,17 +59,35 @@ impl StructuredIO {
                     continue;
                 }
 
-                // Single-line prompt - send as Prompt command
-                let cmd = AgentEnvironmentCommand::Prompt {
-                    worker_id: main_worker_id,
-                    text: line.to_string(),
+                // Try to parse as JSON command, otherwise treat as plain text prompt
+                let result = if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let Some(cmd_str) = json.get("command").and_then(|v| v.as_str()) {
+                        match cmd_str {
+                            "quit" => PromptResult::Shutdown,
+                            _ => {
+                                // Unknown command - treat whole line as prompt
+                                PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                                    worker_id: main_worker_id,
+                                    text: line.to_string(),
+                                })
+                            }
+                        }
+                    } else {
+                        // No command field - treat as prompt
+                        PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                            worker_id: main_worker_id,
+                            text: line.to_string(),
+                        })
+                    }
+                } else {
+                    // Not JSON - treat as plain text prompt
+                    PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                        worker_id: main_worker_id,
+                        text: line.to_string(),
+                    })
                 };
 
-                if cmd_sender
-                    .send(PromptResult::Command(cmd))
-                    .await
-                    .is_err()
-                {
+                if cmd_sender.send(result).await.is_err() {
                     break; // Channel closed
                 }
             }
@@ -79,8 +98,8 @@ impl StructuredIO {
 #[async_trait]
 impl UserInterface for StructuredIO {
     async fn start(&self) -> Result<()> {
-        // Spawn input reading task (always reading)
-        self.spawn_input_reader();
+        tracing::info!("StructuredIO: Starting input reader");
+        let handle = self.spawn_input_reader();
         Ok(())
     }
 
@@ -101,8 +120,28 @@ impl UserInterface for StructuredIO {
             }
         }
 
-        // Handle AgentLoop-specific events
+        // Handle events
         match event {
+            AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged {
+                worker_id,
+                new_state,
+                ..
+            }) => {
+                let state_str = match new_state {
+                    WorkerLifecycleState::Idle => "idle",
+                    WorkerLifecycleState::Busy => "busy",
+                    WorkerLifecycleState::IdleFailed => "idle_failed",
+                };
+
+                let json = json!({
+                    "worker_id": worker_id,
+                    "lifecycle_state": state_str,
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
             AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived {
                 worker_id,
                 text,
