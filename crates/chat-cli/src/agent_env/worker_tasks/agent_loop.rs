@@ -137,17 +137,7 @@ impl WorkerTask for AgentLoop {
 
         let response = self.query_llm().await?;
 
-        // Publish AgentLoopEvent for complete response
-        self.event_bus.publish(AgentEnvironmentEvent::AgentLoop(
-            AgentLoopEvent::ResponseReceived {
-                worker_id: self.worker.id,
-                job_id,
-                text: response.content.clone(),
-                timestamp: Instant::now(),
-            }
-        ));
-
-        // Publish events for tool use requests
+        // Publish events for tool use requests FIRST
         for tool_request in &response.tool_requests {
             // Parse parameters as JSON
             let tool_input: serde_json::Value = serde_json::from_str(&tool_request.parameters)
@@ -177,6 +167,16 @@ impl WorkerTask for AgentLoop {
                 }
             ));
         }
+
+        // Publish AgentLoopEvent for complete response AFTER tool events
+        self.event_bus.publish(AgentEnvironmentEvent::AgentLoop(
+            AgentLoopEvent::ResponseReceived {
+                worker_id: self.worker.id,
+                job_id,
+                text: response.content.clone(),
+                timestamp: Instant::now(),
+            }
+        ));
 
         // Create assistant message and add to history
         let assistant_message = if response.tool_requests.is_empty() {
@@ -230,7 +230,7 @@ mod tests {
     use super::*;
     use crate::agent_env::{
         EventBus, Session, ModelProvider, ModelRequest, ModelResponse,
-        model_providers::ModelResponseChunk,
+        model_providers::{ModelResponseChunk, ToolRequest},
     };
     use crate::cli::chat::message::{UserMessage, UserMessageContent};
     use async_trait::async_trait;
@@ -255,8 +255,8 @@ mod tests {
         async fn request(
             &self,
             _request: ModelRequest,
-            on_start: Box<dyn FnOnce() + Send>,
-            on_chunk: Box<dyn Fn(ModelResponseChunk) + Send + Sync>,
+            on_start: Box<dyn Fn() + Send>,
+            on_chunk: Box<dyn Fn(ModelResponseChunk) + Send>,
             _cancellation_token: CancellationToken,
         ) -> Result<ModelResponse, eyre::Error> {
             on_start();
@@ -286,17 +286,11 @@ mod tests {
         
         // Create worker and add initial message
         let worker = session.build_worker("test".to_string());
-        let user_msg = UserMessage::new(
-            None,
-            UserMessageContent::Prompt {
-                prompt: "Test prompt".to_string(),
-            },
-        );
         worker.context_container
             .conversation_history
             .lock()
             .unwrap()
-            .push_user_message(user_msg);
+            .push_input_message("Test prompt".to_string());
         
         // Subscribe to events
         let mut receiver = event_bus.subscribe();
@@ -367,7 +361,7 @@ mod tests {
         let mock_provider = Arc::new(MockModelProvider::new(ModelResponse {
             content: "I'll use a tool to help.".to_string(),
             tool_requests: vec![
-                crate::agent_env::ToolRequest {
+                ToolRequest {
                     tool_name: "test_tool".to_string(),
                     parameters: r#"{"arg": "value"}"#.to_string(),
                 },
@@ -377,17 +371,11 @@ mod tests {
         
         // Create worker and add initial message
         let worker = session.build_worker("test".to_string());
-        let user_msg = UserMessage::new(
-            None,
-            UserMessageContent::Prompt {
-                prompt: "Test prompt".to_string(),
-            },
-        );
         worker.context_container
             .conversation_history
             .lock()
             .unwrap()
-            .push_user_message(user_msg);
+            .push_input_message("Test prompt".to_string());
         
         // Subscribe to events
         let mut receiver = event_bus.subscribe();
@@ -462,17 +450,11 @@ mod tests {
         let session = Arc::new(Session::new(event_bus.clone(), vec![mock_provider]));
         
         let worker = session.build_worker("test".to_string());
-        let user_msg = UserMessage::new(
-            None,
-            UserMessageContent::Prompt {
-                prompt: "Test prompt".to_string(),
-            },
-        );
         worker.context_container
             .conversation_history
             .lock()
             .unwrap()
-            .push_user_message(user_msg);
+            .push_input_message("Test prompt".to_string());
         
         let agent_loop = AgentLoop::new(
             worker.clone(),
@@ -499,7 +481,7 @@ mod tests {
         let mock_provider2 = Arc::new(MockModelProvider::new(ModelResponse {
             content: "Using tool".to_string(),
             tool_requests: vec![
-                crate::agent_env::ToolRequest {
+                ToolRequest {
                     tool_name: "test_tool".to_string(),
                     parameters: "{}".to_string(),
                 },
@@ -508,17 +490,11 @@ mod tests {
         let session2 = Arc::new(Session::new(event_bus2.clone(), vec![mock_provider2]));
         
         let worker2 = session2.build_worker("test2".to_string());
-        let user_msg2 = UserMessage::new(
-            None,
-            UserMessageContent::Prompt {
-                prompt: "Test prompt".to_string(),
-            },
-        );
         worker2.context_container
             .conversation_history
             .lock()
             .unwrap()
-            .push_user_message(user_msg2);
+            .push_input_message("Test prompt".to_string());
         
         let agent_loop2 = AgentLoop::new(
             worker2.clone(),

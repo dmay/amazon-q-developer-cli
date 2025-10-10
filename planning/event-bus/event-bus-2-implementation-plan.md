@@ -1107,17 +1107,17 @@
 
 ### 9.1 Implement StructuredIO
 
-[ ] **Task 9.1.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs` with basic structure
+[x] **Task 9.1.1**: Create `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add imports: `tokio::sync::mpsc`, `tokio::io::{AsyncBufReadExt, BufReader}`, `std::io::Write`, `serde_json`
 - Reference: Design doc "StructuredIO Implementation"
 
-[ ] **Task 9.1.2**: Implement `StructuredIO` struct
+[x] **Task 9.1.2**: Implement `StructuredIO` struct
 - Add fields: `session: Arc<Session>`, `main_worker_id: Uuid`, `cmd_sender: mpsc::Sender<PromptResult>`, `output_writer: Arc<TokioMutex<Box<dyn Write + Send>>>`
 - Reference: Design doc "StructuredIO Implementation" → "StructuredIO struct"
 
-[ ] **Task 9.1.3**: Implement `StructuredIO::new()` constructor
+[x] **Task 9.1.3**: Implement `StructuredIO::new()` constructor
 - Accept `session: Arc<Session>`, `main_worker_id: Uuid` parameters
 - Return `Result<(Self, mpsc::Receiver<PromptResult>)>`
 - Create command channel
@@ -1125,34 +1125,34 @@
 - Return tuple
 - Reference: Design doc "StructuredIO Implementation" → "StructuredIO::new()"
 
-[ ] **Task 9.1.4**: Implement `UserInterface::start()` for StructuredIO
+[x] **Task 9.1.4**: Implement `UserInterface::start()` for StructuredIO
 - Call `self.spawn_input_reader()`
 - Return `Ok(())`
 - Reference: Design doc "StructuredIO Implementation" → "UserInterface trait"
 
-[ ] **Task 9.1.5**: Implement `UserInterface::handle_event()` for StructuredIO
+[x] **Task 9.1.5**: Implement `UserInterface::handle_event()` for StructuredIO
 - Filter events by worker_id
 - Match on `AgentLoopEvent::ResponseReceived`: output JSON with assistant_response
 - Match on `AgentLoopEvent::ToolUseRequestReceived`: output JSON with tool_use_request
 - Reference: Design doc "StructuredIO Implementation" → "handle_event()"
 
-[ ] **Task 9.1.6**: Implement `StructuredIO::spawn_input_reader()` method
+[x] **Task 9.1.6**: Implement `StructuredIO::spawn_input_reader()` method
 - Create async task that continuously reads lines from stdin
 - For each line, create Prompt command with line as text
 - Send command via cmd_sender
 - Reference: Design doc "StructuredIO Implementation" → "spawn_input_reader()"
 
-[ ] **Task 9.1.7**: Add structured_io module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
+[x] **Task 9.1.7**: Add structured_io module to `crates/chat-cli/src/cli/chat/agent_env_ui/mod.rs`
 - Add `pub mod structured_io;` declaration
 - Add re-export: `pub use structured_io::StructuredIO;`
 
-[ ] **Task 9.1.8**: Run `cargo check` to verify StructuredIO compiles
+[x] **Task 9.1.8**: Run `cargo check` to verify StructuredIO compiles
 - Fix any compilation errors
 - Ensure StructuredIO is properly exported
 
 ### 9.2 Test StructuredIO
 
-[ ] **Task 9.2.1**: Add test module to structured_io.rs
+[x] **Task 9.2.1**: Add test module to structured_io.rs
 - Add `#[cfg(test)]` module
 - Create mock Session and Worker
 - Test event handling
