@@ -610,5 +610,24 @@ Add your findings and resolution to the issue section. Mark it with `[x]` when r
 **IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
 And use command templates exactly as provided, no modifications!
 
+----
+
+# ✅ EventBus-centered design - documentation update
+
+Look at the following files for a reference - previous attempt:
+- codebase/agent-environment/README.md - documentation about the previous attempt on the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/event-bus/event-bus-1-design.md - new design document
+- planning/event-bus/event-bus-2-implementation-plan.md - the implementation plan, main focus for today
+- planning/event-bus/event-bus-3-implementation-log.md - implementation log of what was done so far
+
+Your goal is to update exisrting documentation in codebase/agent-environment and codebase/chat-cli folder.
+
 
 ----

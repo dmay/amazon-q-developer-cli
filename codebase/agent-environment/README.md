@@ -1,12 +1,12 @@
 # Agent Environment Architecture
 
-**Status**: 🚧 In Transition - Preparing for EventBus Architecture
+**Status**: ✅ EventBus Architecture Implemented (October 2025)
 
 ## Overview
 
-The Agent Environment architecture enables **multiple AI agents to run in parallel**, each working independently on different tasks while sharing common infrastructure. This design supports having multiple specialized agents that can execute different tasks simultaneously without blocking each other.
+The Agent Environment architecture enables **multiple AI agents to run in parallel**, each working independently on different tasks while sharing common infrastructure. The system uses an **event-driven architecture** with a centralized EventBus for communication between components.
 
-**Current State**: Core architecture (Worker, Session, WorkerJob, Tasks) is intact. Demo code and WorkerToHostInterface have been removed in preparation for EventBus-centered redesign. See `planning/event-bus/` for new architecture design.
+**Current State**: EventBus-centered architecture is fully implemented and operational. All components communicate via events, enabling flexible UI implementations and clean separation of concerns.
 
 ## Key Design Goals
 
@@ -20,14 +20,19 @@ The Agent Environment architecture enables **multiple AI agents to run in parall
 
 The architecture consists of several key components:
 
-- **[Worker](./worker.md)**: Complete AI agent configuration (model provider, state, context, error tracking)
-- **[ContextContainer](./context-container.md)**: Manages conversation history and contextual information
+### Core Components
+- **[EventBus](./event-bus.md)**: Central event distribution system using tokio broadcast channels
+- **[AgentEnvironment](./agent-environment.md)**: Top-level coordinator managing event multicasting and UI coordination
+- **[Session](./session.md)**: Orchestrator managing Workers, Jobs, and publishing lifecycle events
+- **[Worker](./worker.md)**: Agent state container with lifecycle state, task metadata, and conversation context
+- **[WorkerJob](./job.md)**: Running task instance with lifecycle management and cancellation support
 - **[WorkerTask](./tasks.md)**: Interface for executable work units (agent loops, commands, etc.)
-- **[WorkerJob](./job.md)**: Running instance combining Worker + Task + execution infrastructure
-- **[Session](./session.md)**: Central orchestrator managing all Workers and Jobs
-- **[WorkerToHostInterface](./interface.md)**: Communication contract between Workers and UI layer
+
+### Supporting Components
+- **[ContextContainer](./context-container.md)**: Manages conversation history and contextual information
 - **[ModelProvider](./model-provider.md)**: Abstraction for LLM communication
-- **[TUI](./tui.md)**: Terminal User Interface for interactive agent sessions
+- **[Commands](./commands.md)**: Command system for UI interactions (Prompt, Compact, Quit)
+- **[UI Implementations](../chat-cli/ui-implementations.md)**: TextUi, StructuredIO, and future UIs
 
 ## Code Location
 
@@ -36,111 +41,127 @@ All implementation is in: `crates/chat-cli/src/agent_env/`
 ```
 agent_env/
 ├── mod.rs                          # Module exports
-├── worker.rs                       # Worker implementation (MODIFIED: set_state simplified)
-├── worker_task.rs                  # WorkerTask trait
+├── events.rs                       # Event type definitions (NEW)
+├── event_bus.rs                    # EventBus implementation (NEW)
+├── agent_environment.rs            # AgentEnvironment coordinator (NEW)
+├── commands.rs                     # Command system (NEW)
+├── session.rs                      # Session orchestrator (UPDATED: event publishing)
+├── worker.rs                       # Worker implementation (UPDATED: lifecycle state, metadata)
 ├── worker_job.rs                   # WorkerJob implementation
 ├── worker_job_continuations.rs    # Job completion callbacks
-├── session.rs                      # Session orchestrator (MODIFIED: run_agent_loop stubbed)
+├── worker_task.rs                  # WorkerTask trait
 ├── context_container/              # Context management
-│   ├── mod.rs                     # Module exports
-│   ├── context_container.rs       # ContextContainer struct
-│   ├── conversation_history.rs    # ConversationHistory management
-│   └── conversation_entry.rs      # ConversationEntry type
+│   ├── mod.rs                     
+│   ├── context_container.rs       
+│   ├── conversation_history.rs    
+│   └── conversation_entry.rs      
 ├── model_providers/                # LLM provider abstractions
-│   ├── model_provider.rs          # ModelProvider trait
-│   └── bedrock_converse_stream.rs # AWS Bedrock implementation
+│   ├── model_provider.rs          
+│   └── bedrock_converse_stream.rs 
 └── worker_tasks/                   # Task implementations
-    ├── agent_loop.rs              # Main agent loop (MODIFIED: interface removed)
+    ├── agent_loop.rs              # Main agent loop (UPDATED: event publishing)
     └── mod.rs
-
-REMOVED (in preparation for EventBus architecture):
-├── worker_interface.rs            # DELETED - replaced by EventBus
-└── demo/                           # DELETED - replaced by new entry point
 ```
 
 UI implementation is in: `crates/chat-cli/src/cli/chat/agent_env_ui/`
 
 ```
 agent_env_ui/
-├── mod.rs                              # Module exports (simplified)
+├── mod.rs                              # Module exports
+├── text_ui.rs                          # Text-based interactive UI (NEW)
+├── structured_io.rs                    # JSON I/O for scripting (NEW)
+├── ui_utils.rs                         # Shared UI utilities (NEW)
 ├── input_handler.rs                    # User input with rustyline
 └── ctrl_c_handler.rs                   # Ctrl+C signal handling
-
-REMOVED:
-├── text_ui_worker_to_host_interface.rs # DELETED
-└── prompt_queue.rs                      # DELETED
 ```
 
 ## Execution Flow
 
-1. **Session Creation**: Initialize with model providers
-2. **Worker Creation**: Build workers with specific configurations
-3. **Task Launch**: Create task (e.g., AgentLoop) and launch via Session
-4. **Execution**: Task runs asynchronously, communicating via WorkerToHostInterface
-5. **State Management**: Worker transitions through states (Working → Requesting → Receiving → Inactive)
-6. **Completion**: Job completes normally, is cancelled, or fails with error
+1. **Initialization**: ChatArgs::execute() creates EventBus, Session, Worker, UI, and AgentEnvironment
+2. **Event Multicasting**: AgentEnvironment spawns task to forward events to all UIs
+3. **UI Startup**: UI starts (spawns prompt loop for TextUi, input reader for StructuredIO)
+4. **Command Processing**: AgentEnvironment receives commands from UI via channel
+5. **Task Execution**: Session launches tasks (AgentLoop), publishes events throughout lifecycle
+6. **Event Delivery**: EventBus broadcasts events to all subscribers (UIs, tests, etc.)
+7. **Completion**: Task completes, Session updates worker state, publishes completion event
+8. **Shutdown**: AgentEnvironment coordinates cleanup, cancels jobs, exits gracefully
 
-## State Machine
+## Event-Driven Communication
 
-Workers transition through these states:
+All components communicate via events published to the EventBus:
 
+### Event Types
+- **WorkerEvent**: Created, Deleted, LifecycleStateChanged
+- **JobEvent**: Started, Completed, OutputChunk
+- **AgentLoopEvent**: ResponseReceived, ToolUseRequestReceived
+- **SystemEvent**: ShutdownInitiated
+
+### Worker Lifecycle States
+- **Idle**: Worker ready for new task
+- **Busy**: Worker executing task
+- **IdleFailed**: Worker idle after task failure
+
+### Event Flow
 ```
-Inactive → Working → Requesting → Receiving → [Waiting/UsingTool]* → Inactive
-                                                                    ↓
-                                                              InactiveFailed
+Component → EventBus.publish() → broadcast::Sender → All Subscribers
+                                                    ├─ AgentEnvironment (multicast)
+                                                    │  ├─ Main UI
+                                                    │  └─ Headless UIs
+                                                    └─ Tests
 ```
-
-- **Inactive**: Worker idle, ready for new task
-- **Working**: Preparing request
-- **Requesting**: Sending request to LLM
-- **Receiving**: Streaming response from LLM
-- **Waiting**: Waiting for user input
-- **UsingTool**: Executing tool
-- **InactiveFailed**: Task failed with error
 
 ## Example Usage
 
-**Note**: Example code is outdated. Demo implementation has been removed. See `planning/event-bus/` for new architecture design.
-
 ```rust
-// OUTDATED - For reference only
-// New implementation will use EventBus architecture
+// Create EventBus and Session
+let event_bus = EventBus::default();
+let session = Arc::new(Session::new(event_bus.clone(), vec![model_provider]));
 
-// Create session with model provider
-let session = Session::new(vec![model_provider]);
-
-// Build worker
+// Create Worker
 let worker = session.build_worker("main".to_string());
 
-// Add message to worker's context
+// Add message to conversation
 worker.context_container
     .conversation_history
     .lock()
     .unwrap()
     .push_input_message("Hello, world!".to_string());
 
-// Launch agent loop - CURRENTLY STUBBED
-// Will be reimplemented with EventBus
-let input = AgentLoopInput {};
-let job = session.run_agent_loop(worker, input)?; // Returns unimplemented!()
+// Create UI
+let (text_ui, cmd_receiver) = TextUi::new(session.clone(), worker.id, None)?;
+
+// Create AgentEnvironment
+let agent_env = AgentEnvironment::new(
+    session.clone(),
+    event_bus.clone(),
+    Some(Arc::new(text_ui)),
+    vec![], // No headless UIs
+);
+
+// Launch agent loop
+session.run_task__agent_loop(worker, AgentLoopInput {})?;
+
+// Run main loop (blocks until shutdown)
+agent_env.run().await?;
 ```
 
 ## Related Documentation
 
-**Current Architecture (Partially Intact)**:
-- [Worker Details](./worker.md) - Core worker implementation (set_state simplified)
-- [Context Container](./context-container.md) - Context management (unchanged)
-- [Task System](./tasks.md) - WorkerTask trait (unchanged)
-- [Job Management](./job.md) - WorkerJob implementation (unchanged)
-- [Session Orchestration](./session.md) - Session with stubbed methods
-- [Model Providers](./model-provider.md) - LLM abstraction (unchanged)
+**Core Architecture**:
+- [EventBus](./event-bus.md) - Event distribution system
+- [AgentEnvironment](./agent-environment.md) - Top-level coordinator
+- [Session](./session.md) - Worker and job orchestration with event publishing
+- [Worker](./worker.md) - Agent state with lifecycle and metadata
+- [Context Container](./context-container.md) - Context management
+- [Task System](./tasks.md) - WorkerTask trait and implementations
+- [Job Management](./job.md) - WorkerJob implementation
+- [Model Providers](./model-provider.md) - LLM abstraction
+- [Commands](./commands.md) - Command system for UI interactions
 
-**Removed/Outdated**:
-- ~~UI Interface~~ - WorkerToHostInterface removed, see EventBus design
-- ~~Demo Implementation~~ - Removed, see EventBus design
+**UI Implementations**:
+- [UI Implementations](../chat-cli/ui-implementations.md) - TextUi, StructuredIO, and future UIs
 
-**New Architecture Design**:
-- [EventBus Design](../../planning/event-bus/event-bus-1-design.md) - New architecture
-- [Implementation Plan](../../planning/event-bus/event-bus-2-implementation-plan.md) - Step-by-step tasks
-- [Files to Keep](../../planning/event-bus/event-bus-files-to-keep.md) - Migration guide
-- [Preparation Complete](../../planning/event-bus/preparation-complete.md) - Current status
+**Design Documents**:
+- [EventBus Design](../../planning/event-bus/event-bus-1-design.md) - Complete architecture design
+- [Implementation Plan](../../planning/event-bus/event-bus-2-implementation-plan.md) - Step-by-step implementation
+- [Implementation Log](../../planning/event-bus/event-bus-3-implementation-log.md) - Progress tracking

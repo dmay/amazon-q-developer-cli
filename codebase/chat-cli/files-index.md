@@ -1,73 +1,220 @@
-# Some info about the initialization process
+# Chat CLI - File Structure and Initialization
 
-**Status**: 🚧 Entry point minimized for EventBus architecture preparation
+**Status**: ✅ EventBus Architecture Implemented (October 2025)
 
 ## Startup Call Chain
-- [main()](../../crates/chat-cli/src/main.rs) - parses arguments, creates tokio runtime, passes to Cli.execute in...
-- [Cli.execute()](../../crates/chat-cli/src/cli/mod.rs#L217) - sets up logger, creates `Os`, executes subcommand (below), closes telemetry
-- [RootSubcommand.execute()](../../crates/chat-cli/src/cli/mod.rs#L139) - telemetry, passes to the actual subcommand execution
-  - subcommands are defined as a [enum RootSubcommand](../../crates/chat-cli/src/cli/mod.rs#L93)
+
+- [main()](../../crates/chat-cli/src/main.rs) - Parses arguments, creates tokio runtime, passes to Cli.execute
+- [Cli.execute()](../../crates/chat-cli/src/cli/mod.rs#L217) - Sets up logger, creates `Os`, executes subcommand, closes telemetry
+- [RootSubcommand.execute()](../../crates/chat-cli/src/cli/mod.rs#L139) - Telemetry, passes to actual subcommand execution
+  - Subcommands defined as [enum RootSubcommand](../../crates/chat-cli/src/cli/mod.rs#L93)
   - We are interested in `Chat(ChatArgs)`
-  - `ChatArgs` are defined in "chat" folder:  [ChatArgs](../../crates/chat-cli/src/cli/chat/mod.rs#L210)
-- **Chat entry point is** [`ChatArgs.execute()`](../../crates/chat-cli/src/cli/chat/mod.rs#L229)
-    - **CURRENTLY MINIMIZED** - Just prints "Hello" and exits
-    - Will be reimplemented with EventBus architecture
-    - See `planning/event-bus/` for new design
+  - `ChatArgs` defined in "chat" folder: [ChatArgs](../../crates/chat-cli/src/cli/chat/mod.rs)
+- **Chat entry point**: [`ChatArgs.execute()`](../../crates/chat-cli/src/cli/chat/mod.rs)
+  - Creates EventBus, Session, Worker, UI, and AgentEnvironment
+  - Runs AgentEnvironment main loop (blocks until shutdown)
+  - See implementation details below
 
-## Agent Environment Architecture
+## EventBus Architecture
 
-**Status**: Core architecture intact, demo/interface removed for EventBus redesign.
+Complete event-driven architecture for parallel agent execution. See [Agent Environment Documentation](../agent-environment/README.md) for overview.
 
-New parallel agent execution architecture. See [Agent Environment Documentation](../agent-environment/README.md) for details.
+### Core Components
 
-### Core Components (Intact)
-- [Worker](../agent-environment/worker.md) - Agent configuration and state management
-  - Implementation: [worker.rs](../../crates/chat-cli/src/agent_env/worker.rs)
-  - **MODIFIED**: `set_state()` simplified (no interface parameter)
-  - States: Inactive, Working, Requesting, Receiving, Waiting, UsingTool, InactiveFailed
-- [Session](../agent-environment/session.md) - Central orchestrator for workers and jobs
+#### EventBus System
+- [EventBus](../agent-environment/event-bus.md) - Central event distribution
+  - Implementation: [event_bus.rs](../../crates/chat-cli/src/agent_env/event_bus.rs)
+  - Events: [events.rs](../../crates/chat-cli/src/agent_env/events.rs)
+  - Uses tokio broadcast channels for efficient multicasting
+  - Publishes WorkerEvent, JobEvent, AgentLoopEvent, SystemEvent
+
+#### Coordination Layer
+- [AgentEnvironment](../agent-environment/agent-environment.md) - Top-level coordinator
+  - Implementation: [agent_environment.rs](../../crates/chat-cli/src/agent_env/agent_environment.rs)
+  - Manages event multicasting to all UIs
+  - Processes commands from main UI
+  - Coordinates shutdown and cleanup
+  - Supports multiple concurrent UIs (main + headless)
+
+#### Orchestration Layer
+- [Session](../agent-environment/session.md) - Worker and job orchestrator
   - Implementation: [session.rs](../../crates/chat-cli/src/agent_env/session.rs)
-  - **MODIFIED**: `run_agent_loop()` stubbed with `unimplemented!()`
-  - Manages worker creation, job launching, resource sharing
-- [WorkerJob](../agent-environment/job.md) - Running task instance with lifecycle management
+  - Creates and manages workers
+  - Launches and monitors jobs
+  - Publishes lifecycle events (worker creation, state changes, job completion)
+  - Manages resource sharing (model providers)
+
+#### State Management
+- [Worker](../agent-environment/worker.md) - Agent state container
+  - Implementation: [worker.rs](../../crates/chat-cli/src/agent_env/worker.rs)
+  - Lifecycle state: Idle, Busy, IdleFailed (managed by Session)
+  - Task metadata: Extensible HashMap for task-specific state
+  - Context container: Conversation history and context
+  - Fully serializable for persistence
+
+#### Execution Layer
+- [WorkerJob](../agent-environment/job.md) - Running task instance
   - Implementation: [worker_job.rs](../../crates/chat-cli/src/agent_env/worker_job.rs)
   - Continuations: [worker_job_continuations.rs](../../crates/chat-cli/src/agent_env/worker_job_continuations.rs)
+  - Manages task lifecycle and cancellation
+  - Runs completion callbacks
 
-### Task System (Partially Intact)
+#### Task System
 - [WorkerTask Trait](../agent-environment/tasks.md) - Interface for executable work units
   - Trait definition: [worker_task.rs](../../crates/chat-cli/src/agent_env/worker_task.rs)
   - AgentLoop implementation: [agent_loop.rs](../../crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs)
-    - **MODIFIED**: Removed `host_interface` field, chunk handling stubbed
+    - Publishes OutputChunk events for streaming responses
+    - Publishes AgentLoopEvent for responses and tool use
+    - Sets task metadata for completion state
 
-### Communication (Removed)
-- ~~WorkerToHostInterface~~ - **DELETED** - Will be replaced by EventBus
-  - ~~Trait definition: worker_interface.rs~~ - File deleted
-  - ~~CLI implementation: cli_interface.rs~~ - File deleted
+#### Command System
+- [Commands](../agent-environment/commands.md) - Command types and parsing
+  - Implementation: [commands.rs](../../crates/chat-cli/src/agent_env/commands.rs)
+  - AgentEnvironmentCommand: Prompt, Compact, Quit
+  - UiCommand: Usage, Context, Status, Workers
+  - CommandParser: Parses explicit and implicit commands
 
-### Model Providers (Intact)
+### UI Implementations
+
+See [UI Implementations](./ui-implementations.md) for detailed documentation.
+
+#### TextUi - Text-Based Interactive UI
+- Implementation: [text_ui.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs)
+- Features:
+  - Readline-style input with command history
+  - Streaming output display
+  - Prompt queue pattern (only reads when worker is Idle)
+  - UI commands handled internally (/usage, /context, /status, /workers)
+  - Agent commands forwarded to AgentEnvironment
+
+#### StructuredIO - JSON I/O for Scripting
+- Implementation: [structured_io.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs)
+- Features:
+  - Always-reading pattern (continuously reads stdin)
+  - JSON output for responses and lifecycle events
+  - Suitable for piping commands from scripts
+  - No interactive prompts
+
+#### Shared UI Utilities
+- [ui_utils.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/ui_utils.rs)
+  - Token usage calculation
+  - Context information formatting
+  - Shared helper functions
+- [input_handler.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/input_handler.rs)
+  - User input with rustyline
+  - Command history support
+- [ctrl_c_handler.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/ctrl_c_handler.rs)
+  - Ctrl+C signal handling
+
+### Model Providers
+
 - [ModelProvider System](../agent-environment/model-provider.md) - LLM abstraction layer
   - Trait definition: [model_provider.rs](../../crates/chat-cli/src/agent_env/model_providers/model_provider.rs)
   - Bedrock implementation: [bedrock_converse_stream.rs](../../crates/chat-cli/src/agent_env/model_providers/bedrock_converse_stream.rs)
 
-### Demo (Removed)
-- ~~Demo Implementation~~ - **DELETED** - Will be replaced by EventBus architecture
-  - ~~Entry point: init.rs~~ - File deleted
-  - ~~ProtoLoop: proto_loop.rs~~ - File deleted
-  - ~~CLI interface: cli_interface.rs~~ - File deleted
+### Context Management
 
-### UI Components (Partially Intact)
-- Reusable utilities preserved:
-  - [input_handler.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/input_handler.rs) - User input with rustyline
-  - [ctrl_c_handler.rs](../../crates/chat-cli/src/cli/chat/agent_env_ui/ctrl_c_handler.rs) - Ctrl+C signal handling
-- Removed:
-  - ~~text_ui_worker_to_host_interface.rs~~ - **DELETED**
-  - ~~prompt_queue.rs~~ - **DELETED**
-  - ~~AgentEnvTextUi~~ - **DELETED** from mod.rs
+- [ContextContainer](../agent-environment/context-container.md) - Context management
+  - Implementation: [context_container.rs](../../crates/chat-cli/src/agent_env/context_container/context_container.rs)
+  - Conversation history: [conversation_history.rs](../../crates/chat-cli/src/agent_env/context_container/conversation_history.rs)
+  - Conversation entry: [conversation_entry.rs](../../crates/chat-cli/src/agent_env/context_container/conversation_entry.rs)
 
-## Next Steps
+## Initialization Flow
 
-See EventBus architecture design and implementation plan:
-- [Design Document](../../planning/event-bus/event-bus-1-design.md)
-- [Implementation Plan](../../planning/event-bus/event-bus-2-implementation-plan.md)
-- [Files to Keep](../../planning/event-bus/event-bus-files-to-keep.md)
-- [Preparation Status](../../planning/event-bus/preparation-complete.md)
+```
+ChatArgs::execute()
+├─ Create EventBus
+├─ Load AWS config and create Bedrock client
+├─ Create Session with EventBus and model providers
+├─ Create main Worker
+├─ Add initial input to conversation (if provided)
+├─ Create UI based on --ui-mode flag
+│  ├─ Text (default): TextUi with history path
+│  ├─ Structured: StructuredIO for JSON I/O
+│  └─ None: Headless mode (no main UI)
+├─ Create AgentEnvironment with Session, EventBus, UI
+├─ Launch agent loop if initial input provided
+└─ Run AgentEnvironment.run() (blocks until shutdown)
+```
+
+## Event Flow
+
+```
+Component → EventBus.publish()
+           ↓
+    broadcast::Sender
+           ↓
+    All Subscribers
+    ├─ AgentEnvironment (event multicast task)
+    │  ├─ Main UI (via handle_event)
+    │  └─ Headless UIs (via handle_event)
+    └─ Tests (optional subscribers)
+```
+
+## Command Flow
+
+```
+User Input → UI.prompt_loop
+           ↓
+    CommandParser.parse()
+           ↓
+    Command (Agent or Ui)
+           ↓
+    ├─ UiCommand: Handled by UI internally
+    └─ AgentEnvironmentCommand: Sent via channel
+                              ↓
+                   AgentEnvironment.handle_command()
+                              ↓
+                   Session.run_task__*()
+                              ↓
+                   Task execution with event publishing
+```
+
+## File Structure
+
+```
+crates/chat-cli/src/
+├─ agent_env/                           # Core agent environment
+│  ├─ mod.rs                           # Module exports
+│  ├─ events.rs                        # Event type definitions
+│  ├─ event_bus.rs                     # EventBus implementation
+│  ├─ agent_environment.rs             # AgentEnvironment coordinator
+│  ├─ commands.rs                      # Command system
+│  ├─ session.rs                       # Session orchestrator
+│  ├─ worker.rs                        # Worker state container
+│  ├─ worker_job.rs                    # Job execution
+│  ├─ worker_job_continuations.rs     # Job completion callbacks
+│  ├─ worker_task.rs                   # WorkerTask trait
+│  ├─ context_container/               # Context management
+│  │  ├─ mod.rs
+│  │  ├─ context_container.rs
+│  │  ├─ conversation_history.rs
+│  │  └─ conversation_entry.rs
+│  ├─ model_providers/                 # LLM abstractions
+│  │  ├─ mod.rs
+│  │  ├─ model_provider.rs
+│  │  └─ bedrock_converse_stream.rs
+│  └─ worker_tasks/                    # Task implementations
+│     ├─ mod.rs
+│     └─ agent_loop.rs                # Main agent loop
+│
+└─ cli/chat/
+   ├─ mod.rs                           # Entry point (ChatArgs::execute)
+   └─ agent_env_ui/                    # UI implementations
+      ├─ mod.rs                        # Module exports
+      ├─ text_ui.rs                    # Text-based interactive UI
+      ├─ structured_io.rs              # JSON I/O for scripting
+      ├─ ui_utils.rs                   # Shared UI utilities
+      ├─ input_handler.rs              # Input handling
+      └─ ctrl_c_handler.rs             # Signal handling
+```
+
+## Related Documentation
+
+**Architecture**:
+- [Agent Environment Overview](../agent-environment/README.md)
+- [EventBus](../agent-environment/event-bus.md)
+- [AgentEnvironment](../agent-environment/agent-environment.md)
+- [Session](../agent-environment/session.md)
+- [Worker](../agent-environment/worker.md)
+- [UI Implementations](./ui-implementations.md)
