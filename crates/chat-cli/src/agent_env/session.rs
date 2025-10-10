@@ -6,8 +6,6 @@ use super::worker::Worker;
 use super::worker_job::WorkerJob;
 use super::worker_task::WorkerTask;
 use super::model_providers::ModelProvider;
-use super::worker_interface::WorkerToHostInterface;
-use super::demo::{WorkerProtoLoop, WorkerInput};
 use super::worker_tasks::{AgentLoop, AgentLoopInput};
 
 /// Maximum number of inactive jobs to keep in memory
@@ -42,60 +40,12 @@ impl Session {
         worker
     }
 
-    pub fn run_demo_loop(
-        &self,
-        worker: Arc<Worker>,
-        input: WorkerInput,
-        ui_interface: Arc<dyn WorkerToHostInterface>,
-    ) -> Result<Arc<WorkerJob>, eyre::Error> {
-        let cancellation_token = CancellationToken::new();
-        
-        let worker_loop = Arc::new(WorkerProtoLoop::new(
-            worker.clone(),
-            input,
-            ui_interface,
-            cancellation_token.clone(),
-        ));
-        
-        self.run(worker, worker_loop, cancellation_token)
-    }
-
     pub fn run_agent_loop(
         &self,
-        worker: Arc<Worker>,
-        input: AgentLoopInput,
-        ui_interface: Arc<dyn WorkerToHostInterface>,
+        _worker: Arc<Worker>,
+        _input: AgentLoopInput,
     ) -> Result<Arc<WorkerJob>, eyre::Error> {
-        let cancellation_token = CancellationToken::new();
-        
-        let agent_loop = Arc::new(AgentLoop::new(
-            worker.clone(),
-            input,
-            ui_interface,
-            cancellation_token.clone(),
-        ));
-        
-        self.run(worker, agent_loop, cancellation_token)
-    }
-
-    fn run(
-        &self,
-        worker: Arc<Worker>,
-        worker_task: Arc<dyn WorkerTask>,
-        cancellation_token: CancellationToken,
-    ) -> Result<Arc<WorkerJob>, eyre::Error> {
-        let mut job = WorkerJob::new(
-            worker,
-            worker_task,
-            cancellation_token,
-        );
-        
-        tracing::debug!("Spawning job for worker {}", job.worker.id);
-        job.launch();
-
-        let job = Arc::new(job);
-        self.jobs.lock().unwrap().push(job.clone());
-        Ok(job)
+        unimplemented!("run_agent_loop will be reimplemented in EventBus architecture")
     }
 
     pub fn cancel_all_jobs(&self) {

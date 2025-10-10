@@ -3,7 +3,6 @@ use uuid::Uuid;
 
 use super::context_container::ContextContainer;
 use super::model_providers::ModelProvider;
-use super::worker_interface::WorkerToHostInterface;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WorkerStates {
@@ -37,12 +36,9 @@ impl Worker {
         }
     }
 
-    pub fn set_state(&self, new_state: WorkerStates, interface: &dyn WorkerToHostInterface) {
-        {
-            let mut state = self.state.lock().unwrap();
-            *state = new_state;
-        }
-        interface.worker_state_change(self.id, new_state);
+    pub fn set_state(&self, new_state: WorkerStates) {
+        let mut state = self.state.lock().unwrap();
+        *state = new_state;
     }
 
     pub fn get_state(&self) -> WorkerStates {

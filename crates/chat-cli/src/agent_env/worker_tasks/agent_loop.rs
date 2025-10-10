@@ -3,7 +3,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, debug, error};
 
 use crate::agent_env::{
-    Worker, WorkerTask, WorkerStates, WorkerToHostInterface,
+    Worker, WorkerTask, WorkerStates,
     ModelRequest, ModelResponse, ModelProvider,
 };
 use crate::cli::chat::message::{AssistantMessage, UserMessageContent};
@@ -15,19 +15,16 @@ pub struct AgentLoopInput {
 pub struct AgentLoop {
     worker: Arc<Worker>,
     cancellation_token: CancellationToken,
-    host_interface: Arc<dyn WorkerToHostInterface>,
 }
 
 impl AgentLoop {
     pub fn new(
         worker: Arc<Worker>,
         _input: AgentLoopInput,
-        host_interface: Arc<dyn WorkerToHostInterface>,
         cancellation_token: CancellationToken,
     ) -> Self {
         Self {
             worker,
-            host_interface,
             cancellation_token,
         }
     }
@@ -65,20 +62,18 @@ impl AgentLoop {
 
         let request = ModelRequest { prompt };
 
-        self.worker.set_state(WorkerStates::Requesting, &*self.host_interface);
+        self.worker.set_state(WorkerStates::Requesting);
         
         let worker = self.worker.clone();
-        let host_interface = self.host_interface.clone();
         let worker_id = self.worker.id;
-        let host_interface2 = self.host_interface.clone();
         
         let response = self.worker.model_provider.request(
             request,
             Box::new(move || {
-                worker.set_state(WorkerStates::Receiving, &*host_interface);
+                worker.set_state(WorkerStates::Receiving);
             }),
-            Box::new(move |chunk| {
-                host_interface2.response_chunk_received(worker_id, chunk);
+            Box::new(move |_chunk| {
+                // Chunk handling stubbed out - will be replaced by EventBus
             }),
             self.cancellation_token.clone(),
         ).await.map_err(|e| {
@@ -86,9 +81,9 @@ impl AgentLoop {
                 let error_msg = format!("LLM request failed: {}", e);
                 error!(worker_id = %self.worker.id, error = %e, "LLM request failed");
                 self.worker.set_failure(error_msg);
-                self.worker.set_state(WorkerStates::InactiveFailed, &*self.host_interface);
+                self.worker.set_state(WorkerStates::InactiveFailed);
             } else {
-                self.worker.set_state(WorkerStates::Inactive, &*self.host_interface);
+                self.worker.set_state(WorkerStates::Inactive);
             }
             e
         })?;
@@ -116,7 +111,7 @@ impl WorkerTask for AgentLoop {
 
         self.check_cancellation()?;
         self.worker.set_failure("".to_string());
-        self.worker.set_state(WorkerStates::Working, &*self.host_interface);
+        self.worker.set_state(WorkerStates::Working);
 
         let response = self.query_llm().await?;
 
@@ -142,7 +137,7 @@ impl WorkerTask for AgentLoop {
             );
         }
 
-        self.worker.set_state(WorkerStates::Inactive, &*self.host_interface);
+        self.worker.set_state(WorkerStates::Inactive);
         
         let elapsed = start.elapsed();
         info!(

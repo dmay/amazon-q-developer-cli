@@ -1,4 +1,4 @@
-# How to build the project
+# How to build the Q-CLI project
 
 ## Build process - MANDATORY instructions!
 
@@ -26,7 +26,7 @@ You can ask another instance of AI agent to do it. It's usually refrred to as 's
 
 Use the following bash command:
 ```
-q chat --agent sub-agent --no-interactive "<PROMPT>"
+q chat --agent C --no-interactive "<PROMPT>"
 ```
 
 In the prompt you have to provide following instructions:

@@ -1,8 +1,12 @@
 # Agent Environment Architecture
 
+**Status**: 🚧 In Transition - Preparing for EventBus Architecture
+
 ## Overview
 
 The Agent Environment architecture enables **multiple AI agents to run in parallel**, each working independently on different tasks while sharing common infrastructure. This design supports having multiple specialized agents that can execute different tasks simultaneously without blocking each other.
+
+**Current State**: Core architecture (Worker, Session, WorkerJob, Tasks) is intact. Demo code and WorkerToHostInterface have been removed in preparation for EventBus-centered redesign. See `planning/event-bus/` for new architecture design.
 
 ## Key Design Goals
 
@@ -32,12 +36,11 @@ All implementation is in: `crates/chat-cli/src/agent_env/`
 ```
 agent_env/
 ├── mod.rs                          # Module exports
-├── worker.rs                       # Worker implementation
+├── worker.rs                       # Worker implementation (MODIFIED: set_state simplified)
 ├── worker_task.rs                  # WorkerTask trait
 ├── worker_job.rs                   # WorkerJob implementation
 ├── worker_job_continuations.rs    # Job completion callbacks
-├── worker_interface.rs             # WorkerToHostInterface trait
-├── session.rs                      # Session orchestrator
+├── session.rs                      # Session orchestrator (MODIFIED: run_agent_loop stubbed)
 ├── context_container/              # Context management
 │   ├── mod.rs                     # Module exports
 │   ├── context_container.rs       # ContextContainer struct
@@ -46,24 +49,26 @@ agent_env/
 ├── model_providers/                # LLM provider abstractions
 │   ├── model_provider.rs          # ModelProvider trait
 │   └── bedrock_converse_stream.rs # AWS Bedrock implementation
-├── worker_tasks/                   # Task implementations
-│   ├── agent_loop.rs              # Main agent loop task
-│   └── mod.rs
-└── demo/                           # Demo implementations
-    ├── proto_loop.rs              # Prototype task
-    ├── cli_interface.rs           # CLI UI implementation
-    └── init.rs                    # Demo initialization
+└── worker_tasks/                   # Task implementations
+    ├── agent_loop.rs              # Main agent loop (MODIFIED: interface removed)
+    └── mod.rs
+
+REMOVED (in preparation for EventBus architecture):
+├── worker_interface.rs            # DELETED - replaced by EventBus
+└── demo/                           # DELETED - replaced by new entry point
 ```
 
-TUI implementation is in: `crates/chat-cli/src/cli/chat/agent_env_ui/`
+UI implementation is in: `crates/chat-cli/src/cli/chat/agent_env_ui/`
 
 ```
 agent_env_ui/
-├── mod.rs                              # AgentEnvTextUi main loop
-├── prompt_queue.rs                     # Prompt request queue
+├── mod.rs                              # Module exports (simplified)
 ├── input_handler.rs                    # User input with rustyline
-├── ctrl_c_handler.rs                   # Ctrl+C signal handling
-└── text_ui_worker_to_host_interface.rs # Terminal output interface
+└── ctrl_c_handler.rs                   # Ctrl+C signal handling
+
+REMOVED:
+├── text_ui_worker_to_host_interface.rs # DELETED
+└── prompt_queue.rs                      # DELETED
 ```
 
 ## Execution Flow
@@ -95,12 +100,17 @@ Inactive → Working → Requesting → Receiving → [Waiting/UsingTool]* → I
 
 ## Example Usage
 
+**Note**: Example code is outdated. Demo implementation has been removed. See `planning/event-bus/` for new architecture design.
+
 ```rust
+// OUTDATED - For reference only
+// New implementation will use EventBus architecture
+
 // Create session with model provider
 let session = Session::new(vec![model_provider]);
 
 // Build worker
-let worker = session.build_worker();
+let worker = session.build_worker("main".to_string());
 
 // Add message to worker's context
 worker.context_container
@@ -109,27 +119,28 @@ worker.context_container
     .unwrap()
     .push_input_message("Hello, world!".to_string());
 
-// Create task input (empty - context comes from worker)
+// Launch agent loop - CURRENTLY STUBBED
+// Will be reimplemented with EventBus
 let input = AgentLoopInput {};
-
-// Launch agent loop
-let job = session.run_agent_loop(
-    worker,
-    input,
-    ui_interface,
-)?;
-
-// Wait for completion (assistant response added to context automatically)
-job.wait().await?;
+let job = session.run_agent_loop(worker, input)?; // Returns unimplemented!()
 ```
 
 ## Related Documentation
 
-- [Worker Details](./worker.md)
-- [Context Container](./context-container.md)
-- [Task System](./tasks.md)
-- [Job Management](./job.md)
-- [Session Orchestration](./session.md)
-- [UI Interface](./interface.md)
-- [Model Providers](./model-provider.md)
-- [Demo Implementation](./demo.md)
+**Current Architecture (Partially Intact)**:
+- [Worker Details](./worker.md) - Core worker implementation (set_state simplified)
+- [Context Container](./context-container.md) - Context management (unchanged)
+- [Task System](./tasks.md) - WorkerTask trait (unchanged)
+- [Job Management](./job.md) - WorkerJob implementation (unchanged)
+- [Session Orchestration](./session.md) - Session with stubbed methods
+- [Model Providers](./model-provider.md) - LLM abstraction (unchanged)
+
+**Removed/Outdated**:
+- ~~UI Interface~~ - WorkerToHostInterface removed, see EventBus design
+- ~~Demo Implementation~~ - Removed, see EventBus design
+
+**New Architecture Design**:
+- [EventBus Design](../../planning/event-bus/event-bus-1-design.md) - New architecture
+- [Implementation Plan](../../planning/event-bus/event-bus-2-implementation-plan.md) - Step-by-step tasks
+- [Files to Keep](../../planning/event-bus/event-bus-files-to-keep.md) - Migration guide
+- [Preparation Complete](../../planning/event-bus/preparation-complete.md) - Current status

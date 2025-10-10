@@ -522,3 +522,31 @@ It's preferrable but NOT mandatory to keep the code buildable between the tasks.
 Write it to planning/event-bus/event-bus-2-implementation-plan.md
 
 ----
+
+# ✅ EventBus-centered design - preparation
+Look at the following files - current standing:
+- codebase/agent-environment/README.md - documentation about the firdst iteration of the new architecture that we are working on (read linked files, and other files in that folder as needed)
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/event-bus/event-bus-1-design.md - new design document
+- planning/event-bus/event-bus-2-implementation-plan.md - the implementation plan, main focus for today
+
+Your goal at this stage to to look through the current implementation in following folders, identify which 
+files are mentioned in the design and still needed for the next step, described in the design and implementation docs above.
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+
+Write down the lis of the files to planning/event-bus/event-bus-files-to-keep.md
+
+Then delete all other files under those folders, and minimize the code in the entry point to only print 'Hello'
+
+## Improvements
+
+It's not going to build now, right? How difficult is it to bring it to builable state by removing references to the deleted items, while keeping the files and the structures in place?
+
+Could you also update codebase/agent-environment/README.md, other files in codebase/agent-environment/, and codebase/chat-cli/files-index.md accordingly to your changes?
+
+----
