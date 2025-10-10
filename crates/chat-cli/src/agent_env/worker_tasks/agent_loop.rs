@@ -224,3 +224,321 @@ impl WorkerTask for AgentLoop {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent_env::{
+        EventBus, Session, ModelProvider, ModelRequest, ModelResponse,
+        model_providers::ModelResponseChunk,
+    };
+    use crate::cli::chat::message::{UserMessage, UserMessageContent};
+    use async_trait::async_trait;
+    use std::sync::Arc;
+    use tokio::sync::Mutex as TokioMutex;
+
+    /// Mock model provider for testing
+    struct MockModelProvider {
+        response: Arc<TokioMutex<Option<ModelResponse>>>,
+    }
+
+    impl MockModelProvider {
+        fn new(response: ModelResponse) -> Self {
+            Self {
+                response: Arc::new(TokioMutex::new(Some(response))),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl ModelProvider for MockModelProvider {
+        async fn request(
+            &self,
+            _request: ModelRequest,
+            on_start: Box<dyn FnOnce() + Send>,
+            on_chunk: Box<dyn Fn(ModelResponseChunk) + Send + Sync>,
+            _cancellation_token: CancellationToken,
+        ) -> Result<ModelResponse, eyre::Error> {
+            on_start();
+            
+            let response = self.response.lock().await.take()
+                .ok_or_else(|| eyre::eyre!("Response already consumed"))?;
+            
+            // Simulate streaming chunks
+            for chunk in response.content.chars().collect::<Vec<_>>().chunks(10) {
+                let chunk_str: String = chunk.iter().collect();
+                on_chunk(ModelResponseChunk::AssistantMessage(chunk_str));
+            }
+            
+            Ok(response)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_agent_loop_publishes_output_chunk_events() {
+        // Create EventBus and Session
+        let event_bus = EventBus::default();
+        let mock_provider = Arc::new(MockModelProvider::new(ModelResponse {
+            content: "Hello, this is a test response!".to_string(),
+            tool_requests: vec![],
+        }));
+        let session = Arc::new(Session::new(event_bus.clone(), vec![mock_provider]));
+        
+        // Create worker and add initial message
+        let worker = session.build_worker("test".to_string());
+        let user_msg = UserMessage::new(
+            None,
+            UserMessageContent::Prompt {
+                prompt: "Test prompt".to_string(),
+            },
+        );
+        worker.context_container
+            .conversation_history
+            .lock()
+            .unwrap()
+            .push_user_message(user_msg);
+        
+        // Subscribe to events
+        let mut receiver = event_bus.subscribe();
+        
+        // Create and run AgentLoop
+        let agent_loop = AgentLoop::new(
+            worker.clone(),
+            AgentLoopInput {},
+            event_bus.clone(),
+            CancellationToken::new(),
+        );
+        
+        // Run agent loop in background
+        let worker_id = worker.id;
+        tokio::spawn(async move {
+            let _ = agent_loop.run().await;
+        });
+        
+        // Collect events
+        let mut output_chunks = Vec::new();
+        let mut response_received = false;
+        
+        // Wait for events with timeout
+        let timeout = tokio::time::Duration::from_secs(5);
+        let start = tokio::time::Instant::now();
+        
+        while start.elapsed() < timeout {
+            match tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                receiver.recv()
+            ).await {
+                Ok(Ok(event)) => {
+                    if let Some(wid) = event.worker_id() {
+                        if wid == worker_id {
+                            match event {
+                                AgentEnvironmentEvent::Job(JobEvent::OutputChunk { chunk, .. }) => {
+                                    if let OutputChunk::AssistantResponse(text) = chunk {
+                                        output_chunks.push(text);
+                                    }
+                                }
+                                AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived { .. }) => {
+                                    response_received = true;
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                Ok(Err(_)) => break,
+                Err(_) => continue,
+            }
+        }
+        
+        // Verify events were published
+        assert!(!output_chunks.is_empty(), "Should have received output chunks");
+        assert!(response_received, "Should have received ResponseReceived event");
+        
+        // Verify chunks combine to full response
+        let combined: String = output_chunks.join("");
+        assert!(combined.contains("Hello"), "Combined chunks should contain response text");
+    }
+
+    #[tokio::test]
+    async fn test_agent_loop_publishes_tool_use_events() {
+        // Create EventBus and Session with tool use response
+        let event_bus = EventBus::default();
+        let mock_provider = Arc::new(MockModelProvider::new(ModelResponse {
+            content: "I'll use a tool to help.".to_string(),
+            tool_requests: vec![
+                crate::agent_env::ToolRequest {
+                    tool_name: "test_tool".to_string(),
+                    parameters: r#"{"arg": "value"}"#.to_string(),
+                },
+            ],
+        }));
+        let session = Arc::new(Session::new(event_bus.clone(), vec![mock_provider]));
+        
+        // Create worker and add initial message
+        let worker = session.build_worker("test".to_string());
+        let user_msg = UserMessage::new(
+            None,
+            UserMessageContent::Prompt {
+                prompt: "Test prompt".to_string(),
+            },
+        );
+        worker.context_container
+            .conversation_history
+            .lock()
+            .unwrap()
+            .push_user_message(user_msg);
+        
+        // Subscribe to events
+        let mut receiver = event_bus.subscribe();
+        
+        // Create and run AgentLoop
+        let agent_loop = AgentLoop::new(
+            worker.clone(),
+            AgentLoopInput {},
+            event_bus.clone(),
+            CancellationToken::new(),
+        );
+        
+        // Run agent loop in background
+        let worker_id = worker.id;
+        tokio::spawn(async move {
+            let _ = agent_loop.run().await;
+        });
+        
+        // Collect events
+        let mut tool_use_chunks = Vec::new();
+        let mut tool_use_requests = Vec::new();
+        
+        // Wait for events with timeout
+        let timeout = tokio::time::Duration::from_secs(5);
+        let start = tokio::time::Instant::now();
+        
+        while start.elapsed() < timeout {
+            match tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                receiver.recv()
+            ).await {
+                Ok(Ok(event)) => {
+                    if let Some(wid) = event.worker_id() {
+                        if wid == worker_id {
+                            match event {
+                                AgentEnvironmentEvent::Job(JobEvent::OutputChunk { chunk, .. }) => {
+                                    if let OutputChunk::ToolUse { tool_name, .. } = chunk {
+                                        tool_use_chunks.push(tool_name);
+                                    }
+                                }
+                                AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ToolUseRequestReceived { tool_name, .. }) => {
+                                    tool_use_requests.push(tool_name);
+                                }
+                                AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived { .. }) => {
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                Ok(Err(_)) => break,
+                Err(_) => continue,
+            }
+        }
+        
+        // Verify tool use events were published
+        assert_eq!(tool_use_chunks.len(), 1, "Should have received 1 ToolUse OutputChunk");
+        assert_eq!(tool_use_requests.len(), 1, "Should have received 1 ToolUseRequestReceived event");
+        assert_eq!(tool_use_chunks[0], "test_tool");
+        assert_eq!(tool_use_requests[0], "test_tool");
+    }
+
+    #[tokio::test]
+    async fn test_agent_loop_sets_completion_state_metadata() {
+        // Test with normal completion (no tools)
+        let event_bus = EventBus::default();
+        let mock_provider = Arc::new(MockModelProvider::new(ModelResponse {
+            content: "Simple response".to_string(),
+            tool_requests: vec![],
+        }));
+        let session = Arc::new(Session::new(event_bus.clone(), vec![mock_provider]));
+        
+        let worker = session.build_worker("test".to_string());
+        let user_msg = UserMessage::new(
+            None,
+            UserMessageContent::Prompt {
+                prompt: "Test prompt".to_string(),
+            },
+        );
+        worker.context_container
+            .conversation_history
+            .lock()
+            .unwrap()
+            .push_user_message(user_msg);
+        
+        let agent_loop = AgentLoop::new(
+            worker.clone(),
+            AgentLoopInput {},
+            event_bus.clone(),
+            CancellationToken::new(),
+        );
+        
+        // Run agent loop
+        agent_loop.run().await.expect("Agent loop should complete");
+        
+        // Check completion state metadata
+        let completion_state = worker.get_task_metadata_string(
+            task_metadata_keys::AGENT_LOOP_COMPLETION_STATE
+        );
+        assert_eq!(
+            completion_state,
+            Some("completed_ready_for_prompt".to_string()),
+            "Should set completion state to ready_for_prompt"
+        );
+        
+        // Test with tool request
+        let event_bus2 = EventBus::default();
+        let mock_provider2 = Arc::new(MockModelProvider::new(ModelResponse {
+            content: "Using tool".to_string(),
+            tool_requests: vec![
+                crate::agent_env::ToolRequest {
+                    tool_name: "test_tool".to_string(),
+                    parameters: "{}".to_string(),
+                },
+            ],
+        }));
+        let session2 = Arc::new(Session::new(event_bus2.clone(), vec![mock_provider2]));
+        
+        let worker2 = session2.build_worker("test2".to_string());
+        let user_msg2 = UserMessage::new(
+            None,
+            UserMessageContent::Prompt {
+                prompt: "Test prompt".to_string(),
+            },
+        );
+        worker2.context_container
+            .conversation_history
+            .lock()
+            .unwrap()
+            .push_user_message(user_msg2);
+        
+        let agent_loop2 = AgentLoop::new(
+            worker2.clone(),
+            AgentLoopInput {},
+            event_bus2.clone(),
+            CancellationToken::new(),
+        );
+        
+        // Run agent loop
+        agent_loop2.run().await.expect("Agent loop should complete");
+        
+        // Check completion state metadata
+        let completion_state2 = worker2.get_task_metadata_string(
+            task_metadata_keys::AGENT_LOOP_COMPLETION_STATE
+        );
+        assert_eq!(
+            completion_state2,
+            Some("completed_with_tool_request".to_string()),
+            "Should set completion state to with_tool_request"
+        );
+    }
+}
+

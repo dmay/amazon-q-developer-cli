@@ -563,6 +563,8 @@ Read the following files - new architecture proposal:
 - planning/rethink-comms/situation.md
 - planning/event-bus/event-bus-1-design.md - new design document
 - planning/event-bus/event-bus-2-implementation-plan.md - the implementation plan, main focus for today
+
+Be aware of following files:
 - planning/event-bus/event-bus-3-implementation-log.md - implementation log of what was done so far
 
 Your goal is to proceed with the next not implemented task in the implementation plan.
