@@ -550,3 +550,25 @@ It's not going to build now, right? How difficult is it to bring it to builable 
 Could you also update codebase/agent-environment/README.md, other files in codebase/agent-environment/, and codebase/chat-cli/files-index.md accordingly to your changes?
 
 ----
+
+# EventBus-centered design - implementation
+Look at the following files for a reference - previous attempt:
+- codebase/agent-environment/README.md - documentation about the previous attempt on the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - demo UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - new architecture proposal:
+- planning/rethink-comms/situation.md
+- planning/event-bus/event-bus-1-design.md - new design document
+- planning/event-bus/event-bus-2-implementation-plan.md - the implementation plan, main focus for today
+- planning/event-bus/event-bus-3-implementation-log.md - implementation log of what was done so far
+
+Your goal is to proceed with the next not implemented task in the implementation plan.
+
+Update the tasks in the implementation plan, mark completed tasks as you go, AND also write your progress to planning/event-bus/event-bus-3-implementation-log.md - append the summary of actions you took at the end
+
+When marking a task as completed - just update `[ ]` to `[x]`, do not modify the task itself.
+
+----

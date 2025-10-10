@@ -16,61 +16,61 @@
 
 ### 1.1 Create Event Type Definitions
 
-[ ] **Task 1.1.1**: Create `crates/chat-cli/src/agent_env/events.rs` with basic structure
+[x] **Task 1.1.1**: Create `crates/chat-cli/src/agent_env/events.rs` with basic structure
 - Create new file
 - Add module documentation
 - Add necessary imports: `std::time::Instant`, `uuid::Uuid`, `std::collections::HashMap`, `serde_json`
 - Add `#[derive(Debug, Clone)]` to all event types
 - Reference: Design doc section "Event Structure"
 
-[ ] **Task 1.1.2**: Implement `WorkerLifecycleState` enum
+[x] **Task 1.1.2**: Implement `WorkerLifecycleState` enum
 - Add enum with variants: `Idle`, `Busy`, `IdleFailed`
 - Add `#[derive(Debug, Clone, Copy, PartialEq, Eq)]`
 - Add serde derives: `#[derive(Serialize, Deserialize)]`
 - Reference: Design doc "Event Structure" → "Worker lifecycle states"
 
-[ ] **Task 1.1.3**: Implement `JobCompletionResult` enum
+[x] **Task 1.1.3**: Implement `JobCompletionResult` enum
 - Add enum with variants: `Success { task_metadata: HashMap<String, serde_json::Value> }`, `Cancelled`, `Failed { error: String }`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "Job completion results"
 
-[ ] **Task 1.1.4**: Implement `OutputChunk` enum
+[x] **Task 1.1.4**: Implement `OutputChunk` enum
 - Add enum with variants: `AssistantResponse(String)`, `ToolUse { tool_name: String, tool_input: serde_json::Value }`, `ToolResult { tool_name: String, result: String }`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "Output chunk types"
 
-[ ] **Task 1.1.5**: Implement `WorkerEvent` enum
+[x] **Task 1.1.5**: Implement `WorkerEvent` enum
 - Add enum with variants: `Created`, `Deleted`, `LifecycleStateChanged`
 - Each variant should have fields as specified in design doc
 - All variants include `timestamp: Instant`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "Worker lifecycle and state events"
 
-[ ] **Task 1.1.6**: Implement `JobEvent` enum
+[x] **Task 1.1.6**: Implement `JobEvent` enum
 - Add enum with variants: `Started`, `Completed`, `OutputChunk`
 - Each variant should have fields as specified in design doc
 - All variants include `timestamp: Instant`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "Job execution events"
 
-[ ] **Task 1.1.7**: Implement `AgentLoopEvent` enum
+[x] **Task 1.1.7**: Implement `AgentLoopEvent` enum
 - Add enum with variants: `ResponseReceived`, `ToolUseRequestReceived`
 - Each variant should have fields as specified in design doc
 - All variants include `timestamp: Instant`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "AgentLoop-specific events"
 
-[ ] **Task 1.1.8**: Implement `SystemEvent` enum
+[x] **Task 1.1.8**: Implement `SystemEvent` enum
 - Add enum with variant: `ShutdownInitiated { reason: String, timestamp: Instant }`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "System-level events"
 
-[ ] **Task 1.1.9**: Implement `AgentEnvironmentEvent` top-level enum
+[x] **Task 1.1.9**: Implement `AgentEnvironmentEvent` top-level enum
 - Add enum with variants: `Worker(WorkerEvent)`, `Job(JobEvent)`, `AgentLoop(AgentLoopEvent)`, `System(SystemEvent)`
 - Add `#[derive(Debug, Clone)]`
 - Reference: Design doc "Event Structure" → "Top-level event envelope"
 
-[ ] **Task 1.1.10**: Implement helper methods for `AgentEnvironmentEvent`
+[x] **Task 1.1.10**: Implement helper methods for `AgentEnvironmentEvent`
 - Add `worker_id(&self) -> Option<Uuid>` method
 - Add `is_worker_event(&self) -> bool` method
 - Add `is_job_event(&self) -> bool` method
@@ -79,11 +79,11 @@
 - Add `timestamp(&self) -> Instant` method
 - Reference: Design doc "Event Helper Methods"
 
-[ ] **Task 1.1.11**: Add events module to `crates/chat-cli/src/agent_env/mod.rs`
+[x] **Task 1.1.11**: Add events module to `crates/chat-cli/src/agent_env/mod.rs`
 - Add `pub mod events;` declaration
 - Add re-exports: `pub use events::*;`
 
-[ ] **Task 1.1.12**: Run `cargo check` to verify events module compiles
+[x] **Task 1.1.12**: Run `cargo check` to verify events module compiles
 - Fix any compilation errors
 - Ensure all types are properly exported
 
