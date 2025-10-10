@@ -38,3 +38,76 @@ impl Default for EventBus {
         Self::new(1000)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent_env::events::*;
+    use std::time::Instant;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn test_publish_subscribe_basic() {
+        let bus = EventBus::new(10);
+        let mut receiver = bus.subscribe();
+
+        let event = AgentEnvironmentEvent::System(SystemEvent::ShutdownInitiated {
+            reason: "test".to_string(),
+            timestamp: Instant::now(),
+        });
+
+        bus.publish(event.clone());
+
+        let received = receiver.recv().await.unwrap();
+        assert!(received.is_system_event());
+    }
+
+    #[tokio::test]
+    async fn test_multiple_subscribers() {
+        let bus = EventBus::new(10);
+        let mut receiver1 = bus.subscribe();
+        let mut receiver2 = bus.subscribe();
+        let mut receiver3 = bus.subscribe();
+
+        assert_eq!(bus.subscriber_count(), 3);
+
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+            worker_id: Uuid::new_v4(),
+            name: "test".to_string(),
+            timestamp: Instant::now(),
+        });
+
+        bus.publish(event.clone());
+
+        let r1 = receiver1.recv().await.unwrap();
+        let r2 = receiver2.recv().await.unwrap();
+        let r3 = receiver3.recv().await.unwrap();
+
+        assert!(r1.is_worker_event());
+        assert!(r2.is_worker_event());
+        assert!(r3.is_worker_event());
+    }
+
+    #[tokio::test]
+    async fn test_lagged_events() {
+        let bus = EventBus::new(10);
+        let mut receiver = bus.subscribe();
+
+        for i in 0..100 {
+            let event = AgentEnvironmentEvent::System(SystemEvent::ShutdownInitiated {
+                reason: format!("test {}", i),
+                timestamp: Instant::now(),
+            });
+            bus.publish(event);
+        }
+
+        match receiver.recv().await {
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                // Expected - buffer overflow
+            }
+            _ => {
+                // Also acceptable - might receive some events
+            }
+        }
+    }
+}

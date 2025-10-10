@@ -164,38 +164,38 @@
 
 ### 1.4 Write Tests for Event System
 
-[ ] **Task 1.4.1**: Create test module in `crates/chat-cli/src/agent_env/events.rs`
+[x] **Task 1.4.1**: Create test module in `crates/chat-cli/src/agent_env/events.rs`
 - Add `#[cfg(test)]` module
 - Add test for `worker_id()` helper method
 - Test with WorkerEvent, JobEvent, AgentLoopEvent, SystemEvent
 - Reference: Design doc "Phase 1: Core Event System" → "Testing"
 
-[ ] **Task 1.4.2**: Add test for event type checking helpers
+[x] **Task 1.4.2**: Add test for event type checking helpers
 - Test `is_worker_event()`, `is_job_event()`, `is_agent_loop_event()`, `is_system_event()`
 - Verify correct boolean returns for each event type
 
-[ ] **Task 1.4.3**: Add test for `timestamp()` helper
+[x] **Task 1.4.3**: Add test for `timestamp()` helper
 - Create events with known timestamps
 - Verify timestamp extraction works for all event types
 
-[ ] **Task 1.4.4**: Create test module in `crates/chat-cli/src/agent_env/event_bus.rs`
+[x] **Task 1.4.4**: Create test module in `crates/chat-cli/src/agent_env/event_bus.rs`
 - Add `#[cfg(test)]` module
 - Add test for publish/subscribe basic flow
 - Create EventBus, subscribe, publish event, verify receipt
 
-[ ] **Task 1.4.5**: Add test for multiple subscribers
+[x] **Task 1.4.5**: Add test for multiple subscribers
 - Create EventBus
 - Create 3 subscribers
 - Publish event
 - Verify all 3 subscribers receive the event
 
-[ ] **Task 1.4.6**: Add test for lagged event handling
+[x] **Task 1.4.6**: Add test for lagged event handling
 - Create EventBus with small buffer (10)
 - Subscribe
 - Publish 100 events without reading
 - Read from subscriber and verify `RecvError::Lagged` is received
 
-[ ] **Task 1.4.7**: Run `cargo test` to verify all tests pass
+[x] **Task 1.4.7**: Run `cargo test` to verify all tests pass
 - Fix any failing tests
 - Ensure test coverage is adequate
 

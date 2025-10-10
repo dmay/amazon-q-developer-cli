@@ -197,3 +197,87 @@ impl AgentEnvironmentEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_worker_id_extraction() {
+        let worker_id = Uuid::new_v4();
+        let timestamp = Instant::now();
+
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+            worker_id,
+            name: "test".to_string(),
+            timestamp,
+        });
+        assert_eq!(event.worker_id(), Some(worker_id));
+
+        let event = AgentEnvironmentEvent::Job(JobEvent::Started {
+            worker_id,
+            job_id: Uuid::new_v4(),
+            task_type: "test".to_string(),
+            timestamp,
+        });
+        assert_eq!(event.worker_id(), Some(worker_id));
+
+        let event = AgentEnvironmentEvent::System(SystemEvent::ShutdownInitiated {
+            reason: "test".to_string(),
+            timestamp,
+        });
+        assert_eq!(event.worker_id(), None);
+    }
+
+    #[test]
+    fn test_event_type_checking() {
+        let timestamp = Instant::now();
+
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+            worker_id: Uuid::new_v4(),
+            name: "test".to_string(),
+            timestamp,
+        });
+        assert!(event.is_worker_event());
+        assert!(!event.is_job_event());
+        assert!(!event.is_agent_loop_event());
+        assert!(!event.is_system_event());
+
+        let event = AgentEnvironmentEvent::Job(JobEvent::Started {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            task_type: "test".to_string(),
+            timestamp,
+        });
+        assert!(!event.is_worker_event());
+        assert!(event.is_job_event());
+
+        let event = AgentEnvironmentEvent::System(SystemEvent::ShutdownInitiated {
+            reason: "test".to_string(),
+            timestamp,
+        });
+        assert!(event.is_system_event());
+    }
+
+    #[test]
+    fn test_timestamp_extraction() {
+        let timestamp = Instant::now();
+
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+            worker_id: Uuid::new_v4(),
+            name: "test".to_string(),
+            timestamp,
+        });
+        assert_eq!(event.timestamp(), timestamp);
+
+        let event = AgentEnvironmentEvent::Job(JobEvent::Completed {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            result: JobCompletionResult::Success {
+                task_metadata: std::collections::HashMap::new(),
+            },
+            timestamp,
+        });
+        assert_eq!(event.timestamp(), timestamp);
+    }
+}

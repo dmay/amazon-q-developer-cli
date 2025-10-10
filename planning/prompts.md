@@ -571,4 +571,6 @@ Update the tasks in the implementation plan, mark completed tasks as you go, AND
 
 When marking a task as completed - just update `[ ]` to `[x]`, do not modify the task itself.
 
+**IMPORTANT** Refer to "# How to build the Q-CLI project" when you need to do `cargo check`
+
 ----

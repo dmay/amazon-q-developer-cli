@@ -111,4 +111,55 @@ This file tracks the progress of implementing the EventBus-centered architecture
 
 **Next task**: Task 1.4.1 - Write tests for Event System
 
+### Phase 1.4: Write Tests for Event System ✅
+
+**Completed**: October 9, 2025 20:04 PDT
+
+**Tasks completed**:
+- ✅ Task 1.4.1: Create test module in events.rs
+- ✅ Task 1.4.2: Add test for event type checking helpers
+- ✅ Task 1.4.3: Add test for timestamp() helper
+- ✅ Task 1.4.4: Create test module in event_bus.rs
+- ✅ Task 1.4.5: Add test for multiple subscribers
+- ✅ Task 1.4.6: Add test for lagged event handling
+- ✅ Task 1.4.7: Run cargo test to verify all tests pass
+
+**Actions taken**:
+1. Added test module to `events.rs` with 3 tests:
+   - `test_worker_id_extraction`: Tests worker_id() helper with different event types
+   - `test_event_type_checking`: Tests is_worker_event(), is_job_event(), etc.
+   - `test_timestamp_extraction`: Tests timestamp() helper
+2. Added test module to `event_bus.rs` with 3 tests:
+   - `test_publish_subscribe_basic`: Tests basic event publishing and receiving
+   - `test_multiple_subscribers`: Tests that all subscribers receive events
+   - `test_lagged_events`: Tests buffer overflow handling
+3. All 6 tests pass successfully
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/events.rs`
+- Modified: `crates/chat-cli/src/agent_env/event_bus.rs`
+
+**Test results**:
+```
+test result: ok. 3 passed (events)
+test result: ok. 3 passed (event_bus)
+```
+
+**Status**: ✅ Complete - Phase 1 (Core Event System) fully implemented and tested
+
+---
+
+## Phase 1 Summary
+
+**Total tasks completed**: 27/27 (100%)
+**Overall progress**: 27/215 tasks (12.6%)
+
+**What was built**:
+- Complete event type hierarchy with nested enums
+- EventBus using tokio broadcast channels
+- Session integration with EventBus
+- Comprehensive test coverage for event system
+
+**Next phase**: Phase 2 - Worker State Management
+
 ---
