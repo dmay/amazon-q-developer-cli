@@ -138,27 +138,27 @@
 
 ### 1.3 Integrate EventBus into Session
 
-[ ] **Task 1.3.1**: Update `Session` struct in `crates/chat-cli/src/agent_env/session.rs`
+[x] **Task 1.3.1**: Update `Session` struct in `crates/chat-cli/src/agent_env/session.rs`
 - Add field: `event_bus: EventBus`
 - Keep existing fields unchanged
 - Reference: Design doc "Session" → "Session struct"
 
-[ ] **Task 1.3.2**: Update `Session::new()` constructor
+[x] **Task 1.3.2**: Update `Session::new()` constructor
 - Add parameter: `event_bus: EventBus`
 - Store event_bus in struct
 - Keep existing initialization logic
 - Reference: Design doc "Session" → "Session::new()"
 
-[ ] **Task 1.3.3**: Add getter method `Session::event_bus()`
+[x] **Task 1.3.3**: Add getter method `Session::event_bus()`
 - Return `&EventBus`
 - Simple getter for event_bus field
 
-[ ] **Task 1.3.4**: Update demo code in `crates/chat-cli/src/agent_env/demo/init.rs`
+[x] **Task 1.3.4**: Update demo code in `crates/chat-cli/src/agent_env/demo/init.rs`
 - Create EventBus before Session
 - Pass EventBus to Session::new()
 - Keep existing demo logic working
 
-[ ] **Task 1.3.5**: Run `cargo check` to verify Session changes compile
+[x] **Task 1.3.5**: Run `cargo check` to verify Session changes compile
 - Fix any compilation errors
 - Ensure demo still compiles
 

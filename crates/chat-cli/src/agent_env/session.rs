@@ -7,23 +7,30 @@ use super::worker_job::WorkerJob;
 use super::worker_task::WorkerTask;
 use super::model_providers::ModelProvider;
 use super::worker_tasks::{AgentLoop, AgentLoopInput};
+use super::event_bus::EventBus;
 
 /// Maximum number of inactive jobs to keep in memory
 pub const MAX_INACTIVE_JOBS: usize = 3;
 
 pub struct Session {
+    event_bus: EventBus,
     model_providers: Vec<Arc<dyn ModelProvider>>,
     workers: Arc<Mutex<Vec<Arc<Worker>>>>,
     jobs: Arc<Mutex<Vec<Arc<WorkerJob>>>>,
 }
 
 impl Session {
-    pub fn new(model_providers: Vec<Arc<dyn ModelProvider>>) -> Self {
+    pub fn new(event_bus: EventBus, model_providers: Vec<Arc<dyn ModelProvider>>) -> Self {
         Self {
+            event_bus,
             model_providers,
             workers: Arc::new(Mutex::new(Vec::new())),
             jobs: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    pub fn event_bus(&self) -> &EventBus {
+        &self.event_bus
     }
 
     pub fn build_worker(&self, name: String) -> Arc<Worker> {

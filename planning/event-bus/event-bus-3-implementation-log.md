@@ -85,4 +85,30 @@ This file tracks the progress of implementing the EventBus-centered architecture
 
 **Next task**: Task 1.3.1 - Integrate EventBus into Session
 
+### Phase 1.3: Integrate EventBus into Session ✅
+
+**Completed**: October 9, 2025 19:56 PDT
+
+**Tasks completed**:
+- ✅ Task 1.3.1: Update Session struct
+- ✅ Task 1.3.2: Update Session::new() constructor
+- ✅ Task 1.3.3: Add Session::event_bus() getter
+- ✅ Task 1.3.4: Update demo code (N/A - no demo exists yet)
+- ✅ Task 1.3.5: Verify Session changes compile
+
+**Actions taken**:
+1. Added `event_bus: EventBus` field to Session struct
+2. Updated `Session::new()` to accept `event_bus: EventBus` parameter
+3. Added `event_bus()` getter method returning `&EventBus`
+4. Added import for `EventBus` in session.rs
+5. Verified compilation with `cargo check` - all successful
+6. No demo code exists yet to update
+
+**Files modified**:
+- Modified: `crates/chat-cli/src/agent_env/session.rs`
+
+**Status**: ✅ Complete - Session now owns EventBus and can publish events
+
+**Next task**: Task 1.4.1 - Write tests for Event System
+
 ---
