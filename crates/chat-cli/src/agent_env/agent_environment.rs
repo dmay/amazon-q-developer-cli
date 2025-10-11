@@ -46,6 +46,7 @@ pub struct AgentEnvironment {
     main_ui: Option<Arc<dyn UserInterface>>,
     headless_uis: Vec<Arc<dyn HeadlessInterface>>,
     shutdown_signal: Arc<Notify>,
+    interactive: bool,
 }
 
 impl AgentEnvironment {
@@ -55,6 +56,7 @@ impl AgentEnvironment {
         event_bus: EventBus,
         main_ui: Option<Arc<dyn UserInterface>>,
         headless_uis: Vec<Arc<dyn HeadlessInterface>>,
+        interactive: bool,
     ) -> Self {
         Self {
             session,
@@ -62,6 +64,7 @@ impl AgentEnvironment {
             main_ui,
             headless_uis,
             shutdown_signal: Arc::new(Notify::new()),
+            interactive,
         }
     }
 
@@ -99,6 +102,63 @@ impl AgentEnvironment {
                     }
                     _ = shutdown.notified() => {
                         tracing::info!("Event multicast shutting down");
+                        break;
+                    }
+                }
+            }
+        })
+    }
+
+    /// Spawn job completion monitor for non-interactive mode
+    /// 
+    /// Monitors JobEvent::Completed events and triggers shutdown when all jobs complete.
+    /// Only active in non-interactive mode (interactive=false).
+    pub fn spawn_job_completion_monitor(&self) -> JoinHandle<()> {
+        // Early return if interactive mode
+        if self.interactive {
+            return tokio::spawn(async {});
+        }
+
+        let mut receiver = self.event_bus.subscribe();
+        let session = self.session.clone();
+        let shutdown = self.shutdown_signal.clone();
+
+        tokio::spawn(async move {
+            use super::events::{AgentEnvironmentEvent, JobEvent, JobCompletionResult, UserInteractionRequired};
+
+            loop {
+                match receiver.recv().await {
+                    Ok(AgentEnvironmentEvent::Job(JobEvent::Completed { result, .. })) => {
+                        // Check if there are any active jobs remaining
+                        if !session.has_active_jobs() {
+                            // Check completion status
+                            match &result {
+                                JobCompletionResult::Success { user_interaction_required, .. } => {
+                                    if *user_interaction_required == UserInteractionRequired::ToolApproval {
+                                        eprintln!("Warning: Job completed with pending tool approval (non-clean exit)");
+                                    }
+                                }
+                                JobCompletionResult::Failed { error } => {
+                                    eprintln!("Error: Job failed: {}", error);
+                                }
+                                JobCompletionResult::Cancelled => {
+                                    eprintln!("Warning: Job was cancelled");
+                                }
+                            }
+
+                            // Trigger shutdown
+                            shutdown.notify_waiters();
+                            break;
+                        }
+                    }
+                    Ok(_) => {
+                        // Ignore other events
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!("Job completion monitor lagged by {} events", n);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        tracing::info!("Event bus closed in job completion monitor");
                         break;
                     }
                 }
@@ -318,6 +378,7 @@ mod tests {
             event_bus.clone(),
             Some(mock_ui.clone()),
             vec![],
+            true, // interactive mode for test
         );
 
         // Spawn multicast task
@@ -358,6 +419,7 @@ mod tests {
             event_bus.clone(),
             None,
             vec![headless1.clone(), headless2.clone()],
+            true, // interactive mode for test
         );
 
         // Spawn multicast task
@@ -393,7 +455,7 @@ mod tests {
         let model_providers = vec![];
         let session = Arc::new(Session::new(event_bus.clone(), model_providers));
 
-        let agent_env = AgentEnvironment::new(session.clone(), event_bus.clone(), None, vec![]);
+        let agent_env = AgentEnvironment::new(session.clone(), event_bus.clone(), None, vec![], true);
 
         // Spawn run() in background
         let agent_env_clone = Arc::new(agent_env);
@@ -425,7 +487,7 @@ mod tests {
         let model_providers = vec![];
         let session = Arc::new(Session::new(event_bus.clone(), model_providers));
 
-        let agent_env = AgentEnvironment::new(session.clone(), event_bus.clone(), None, vec![]);
+        let agent_env = AgentEnvironment::new(session.clone(), event_bus.clone(), None, vec![], true);
 
         // Spawn run() in background
         let agent_env = Arc::new(agent_env);

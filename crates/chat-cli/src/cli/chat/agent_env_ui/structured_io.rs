@@ -22,6 +22,7 @@ pub struct StructuredIO {
     cmd_sender: mpsc::Sender<PromptResult>,
     cmd_receiver: Arc<TokioMutex<Option<mpsc::Receiver<PromptResult>>>>,
     output_writer: Arc<TokioMutex<Box<dyn Write + Send>>>,
+    interactive: bool,
 }
 
 impl StructuredIO {
@@ -29,7 +30,7 @@ impl StructuredIO {
     ///
     /// Returns tuple of (StructuredIO, Receiver) following Option C pattern from design.
     /// The receiver should be passed to AgentEnvironment.
-    pub fn new(session: Arc<Session>, main_worker_id: Uuid) -> Result<Self> {
+    pub fn new(session: Arc<Session>, main_worker_id: Uuid, interactive: bool) -> Result<Self> {
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
 
         Ok(Self {
@@ -38,6 +39,7 @@ impl StructuredIO {
             cmd_sender,
             cmd_receiver: Arc::new(TokioMutex::new(Some(cmd_receiver))),
             output_writer: Arc::new(TokioMutex::new(Box::new(std::io::stdout()))),
+            interactive,
         })
     }
 
@@ -98,8 +100,12 @@ impl StructuredIO {
 #[async_trait]
 impl UserInterface for StructuredIO {
     async fn start(&self) -> Result<()> {
-        tracing::info!("StructuredIO: Starting input reader");
-        let handle = self.spawn_input_reader();
+        if self.interactive {
+            tracing::info!("StructuredIO: Starting input reader");
+            let _handle = self.spawn_input_reader();
+        } else {
+            tracing::info!("StructuredIO: Non-interactive mode, skipping input reader");
+        }
         Ok(())
     }
 

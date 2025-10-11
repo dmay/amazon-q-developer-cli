@@ -7,7 +7,7 @@
 - [x] Designed
 - [x] Planned
 - [ ] Implemented
-  - [ ] Task 1.1: --no-interactive support
+  - [x] Task 1.1: --no-interactive support
   - [ ] Task 1.6: StructuredIO enhancements
 
 **Files:**

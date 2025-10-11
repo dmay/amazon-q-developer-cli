@@ -22,20 +22,20 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 1.1 Add UserInteractionRequired Enum (Design Doc §2.1.1)
 
-- [ ] **Add UserInteractionRequired enum to events.rs** (Design Doc §2.1.1)
+- [x] **Add UserInteractionRequired enum to events.rs** (Design Doc §2.1.1)
   - Create enum with variants: `None`, `ToolApproval`
   - Add to `crates/chat-cli/src/agent_env/events.rs`
   - Derive `Debug, Clone, Copy, PartialEq, Eq`
   - Add documentation explaining each variant
 
-- [ ] **Update JobCompletionResult::Success variant** (Design Doc §2.1.1)
+- [x] **Update JobCompletionResult::Success variant** (Design Doc §2.1.1)
   - Add `user_interaction_required: UserInteractionRequired` field to Success variant
   - Update all existing code that constructs `JobCompletionResult::Success` to include the new field
   - Set to `UserInteractionRequired::None` for existing usages (default behavior)
 
 ### 1.2 Add Session Active Jobs Query (Design Doc §2.1.2)
 
-- [ ] **Implement Session::has_active_jobs() method** (Design Doc §2.1.2)
+- [x] **Implement Session::has_active_jobs() method** (Design Doc §2.1.2)
   - Add public method to `crates/chat-cli/src/agent_env/session.rs`
   - Lock jobs mutex and iterate to check `job.is_active()`
   - Return true if any job is active, false otherwise
@@ -47,20 +47,20 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 2.1 Add Interactive Flag to AgentEnvironment
 
-- [ ] **Add interactive field to AgentEnvironment struct** (Design Doc §2.1.3)
+- [x] **Add interactive field to AgentEnvironment struct** (Design Doc §2.1.3)
   - Add `interactive: bool` field to struct in `crates/chat-cli/src/agent_env/agent_environment.rs`
   - Update `new()` constructor to accept `interactive: bool` parameter
   - Store the parameter in the struct
 
 ### 2.2 Implement Job Completion Monitor
 
-- [ ] **Create spawn_job_completion_monitor() method** (Design Doc §2.1.3)
+- [x] **Create spawn_job_completion_monitor() method** (Design Doc §2.1.3)
   - Add method to AgentEnvironment that returns `JoinHandle<()>`
   - Early return if `interactive` is true (only monitor in non-interactive mode)
   - Subscribe to EventBus to receive events
   - Spawn tokio task that loops on event receiver
 
-- [ ] **Handle JobEvent::Completed in monitor** (Design Doc §2.1.3)
+- [x] **Handle JobEvent::Completed in monitor** (Design Doc §2.1.3)
   - Match on `JobEvent::Completed` events
   - Call `session.has_active_jobs()` to check for remaining jobs
   - If no active jobs remain, check `user_interaction_required` field
@@ -69,7 +69,7 @@ This plan provides step-by-step implementation tasks for two foundational improv
   - Trigger shutdown by calling `shutdown_signal.notify_waiters()`
   - Break from loop after shutdown
 
-- [ ] **Call spawn_job_completion_monitor() in AgentEnvironment::run()** (Design Doc §2.1.3)
+- [x] **Call spawn_job_completion_monitor() in AgentEnvironment::run()** (Design Doc §2.1.3)
   - Call method BEFORE any jobs are spawned (in ChatArgs::execute)
   - Store JoinHandle for cleanup (optional)
 
@@ -79,24 +79,24 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 3.1 Update TextUi for Interactive Flag (Design Doc §2.1.4)
 
-- [ ] **Add interactive field to TextUi struct** (Design Doc §2.1.4)
+- [x] **Add interactive field to TextUi struct** (Design Doc §2.1.4)
   - Add `interactive: bool` field in `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs`
   - Update `new()` signature to accept `interactive: bool` parameter
   - Store parameter in struct
 
-- [ ] **Conditionally spawn prompt loop in TextUi::start()** (Design Doc §2.1.4)
+- [x] **Conditionally spawn prompt loop in TextUi::start()** (Design Doc §2.1.4)
   - Wrap `self.spawn_prompt_loop()` call in `if self.interactive { ... }`
   - Keep existing worker idle check and prompt_ready signal logic
   - Ensure start() still returns Ok(()) in non-interactive mode
 
 ### 3.2 Update StructuredIO for Interactive Flag (Design Doc §2.1.5)
 
-- [ ] **Add interactive field to StructuredIO struct** (Design Doc §2.1.5)
+- [x] **Add interactive field to StructuredIO struct** (Design Doc §2.1.5)
   - Add `interactive: bool` field in `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs`
   - Update `new()` signature to accept `interactive: bool` parameter
   - Store parameter in struct
 
-- [ ] **Conditionally spawn input reader in StructuredIO::start()** (Design Doc §2.1.5)
+- [x] **Conditionally spawn input reader in StructuredIO::start()** (Design Doc §2.1.5)
   - Wrap `self.spawn_input_reader()` call in `if self.interactive { ... }`
   - Ensure start() still returns Ok(()) in non-interactive mode
 
@@ -106,33 +106,33 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 4.1 Update ChatArgs::execute() Initialization Order
 
-- [ ] **Invert no_interactive flag** (Design Doc §2.1.6)
+- [x] **Invert no_interactive flag** (Design Doc §2.1.6)
   - Add `let interactive = !self.no_interactive;` at start of execute() method
   - Use `interactive` variable throughout the method
 
-- [ ] **Pass interactive flag to UI constructors** (Design Doc §2.1.6)
+- [x] **Pass interactive flag to UI constructors** (Design Doc §2.1.6)
   - Update TextUi::new() call to pass `interactive` parameter
   - Update StructuredIO::new() call to pass `interactive` parameter
   - Update any other UI constructors if they exist
 
-- [ ] **Pass interactive flag to AgentEnvironment::new()** (Design Doc §2.1.6)
+- [x] **Pass interactive flag to AgentEnvironment::new()** (Design Doc §2.1.6)
   - Add `interactive` parameter to AgentEnvironment::new() call
   - Ensure parameter is passed correctly
 
 ### 4.2 Add Job Monitoring Startup
 
-- [ ] **Call spawn_job_completion_monitor() before spawning jobs** (Design Doc §2.1.6)
+- [x] **Call spawn_job_completion_monitor() before spawning jobs** (Design Doc §2.1.6)
   - Add conditional: `if !interactive { agent_env.spawn_job_completion_monitor(); }`
   - Place AFTER AgentEnvironment creation but BEFORE any job spawning
   - This ensures monitor is ready before jobs complete
 
 ### 4.3 Add Error Handling for Non-Interactive Mode
 
-- [ ] **Error if no input provided in non-interactive mode** (Design Doc §2.1.6)
+- [x] **Error if no input provided in non-interactive mode** (Design Doc §2.1.6)
   - After checking `self.input`, add: `if self.input.is_none() && !interactive { return Err(...); }`
   - Error message: "No input provided for non-interactive mode"
 
-- [ ] **Error if no jobs spawned in non-interactive mode** (Design Doc §2.1.6)
+- [x] **Error if no jobs spawned in non-interactive mode** (Design Doc §2.1.6)
   - After attempting to spawn jobs, check: `if !interactive && !session.has_active_jobs() { return Err(...); }`
   - Error message: "No jobs spawned in non-interactive mode"
 
@@ -142,10 +142,11 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 5.1 Set user_interaction_required in AgentLoop
 
-- [ ] **Update AgentLoop completion to set user_interaction_required** (Design Doc §2.1.1)
-  - In `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs`
+- [x] **Update AgentLoop completion to set user_interaction_required** (Design Doc §2.1.1)
+  - In `crates/chat-cli/src/agent_env/session.rs` (not agent_loop.rs)
   - When completing with normal response, set `user_interaction_required: UserInteractionRequired::None`
   - When completing while waiting for tool approval, set `user_interaction_required: UserInteractionRequired::ToolApproval`
+  - Check task_metadata for "agent_loop_completion_state" to determine which case applies
   - Ensure field is set in all Success result paths
 
 ---

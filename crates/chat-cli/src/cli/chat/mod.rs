@@ -251,6 +251,9 @@ impl ChatArgs {
         use aws_sdk_bedrockruntime::Client as BedrockClient;
         use aws_types::region::Region;
         
+        // Invert no_interactive flag for clearer logic
+        let interactive = !self.no_interactive;
+        
         // Task 8.1.1: Create EventBus
         let event_bus = EventBus::default();
         
@@ -281,14 +284,7 @@ impl ChatArgs {
         }
         
         // Task 9.3.2: Select UI based on ui_mode
-        let ui_mode = self.ui_mode.unwrap_or_else(|| {
-            // Default: use Text mode unless --no-interactive is set
-            if self.no_interactive {
-                UiMode::None
-            } else {
-                UiMode::Text
-            }
-        });
+        let ui_mode = self.ui_mode.unwrap_or(UiMode::Text);
         
         let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = match ui_mode {
             UiMode::Text => {
@@ -297,6 +293,7 @@ impl ChatArgs {
                     session.clone(),
                     main_worker_id,
                     history_path,
+                    interactive,
                 )?;
                 Some(Arc::new(text_ui))
             }
@@ -304,6 +301,7 @@ impl ChatArgs {
                 let structured_io = StructuredIO::new(
                     session.clone(),
                     main_worker_id,
+                    interactive,
                 )?;
                 Some(Arc::new(structured_io))
             }
@@ -318,7 +316,18 @@ impl ChatArgs {
             event_bus.clone(),
             main_ui,
             vec![], // No headless UIs for now
+            interactive,
         );
+        
+        // Error if no input provided in non-interactive mode
+        if self.input.is_none() && !interactive {
+            return Err(eyre::eyre!("No input provided for non-interactive mode"));
+        }
+        
+        // Spawn job completion monitor before spawning jobs (non-interactive mode only)
+        if !interactive {
+            agent_env.spawn_job_completion_monitor();
+        }
         
         // Task 8.1.7: Handle initial prompt if provided
         if self.input.is_some() {
@@ -328,6 +337,11 @@ impl ChatArgs {
             
             // Launch agent loop for initial input
             session.run_task__agent_loop(main_worker.clone(), AgentLoopInput {})?;
+        }
+        
+        // Error if no jobs spawned in non-interactive mode
+        if !interactive && !session.has_active_jobs() {
+            return Err(eyre::eyre!("No jobs spawned in non-interactive mode"));
         }
         
         // Task 8.1.8: Run AgentEnvironment

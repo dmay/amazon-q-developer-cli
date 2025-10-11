@@ -9,7 +9,7 @@ use super::worker_task::WorkerTask;
 use super::model_providers::ModelProvider;
 use super::worker_tasks::{AgentLoop, AgentLoopInput};
 use super::event_bus::EventBus;
-use super::events::{AgentEnvironmentEvent, WorkerEvent, WorkerLifecycleState};
+use super::events::{AgentEnvironmentEvent, WorkerEvent, WorkerLifecycleState, UserInteractionRequired};
 
 /// Maximum number of inactive jobs to keep in memory
 pub const MAX_INACTIVE_JOBS: usize = 3;
@@ -150,7 +150,21 @@ impl Session {
         // Determine completion result
         let completion_result = match result {
             Ok(_) => {
-                JobCompletionResult::Success { task_metadata }
+                // Check if task requires user interaction (e.g., tool approval)
+                let user_interaction_required = if let Some(completion_state) = task_metadata.get("agent_loop_completion_state") {
+                    if completion_state.as_str() == Some("completed_with_tool_request") {
+                        UserInteractionRequired::ToolApproval
+                    } else {
+                        UserInteractionRequired::None
+                    }
+                } else {
+                    UserInteractionRequired::None
+                };
+                
+                JobCompletionResult::Success { 
+                    task_metadata,
+                    user_interaction_required,
+                }
             }
             Err(e) => JobCompletionResult::Failed {
                 error: e.to_string(),
@@ -224,6 +238,15 @@ impl Session {
         let active = jobs.iter().filter(|j| j.is_active()).count();
         let inactive = jobs.len() - active;
         (active, inactive)
+    }
+
+    /// Check if there are any active jobs
+    /// 
+    /// Returns true if at least one job is active, false otherwise.
+    /// Note: This checks the active state of jobs, not just if the jobs Vec is non-empty.
+    pub fn has_active_jobs(&self) -> bool {
+        let jobs = self.jobs.lock().unwrap();
+        jobs.iter().any(|job| job.is_active())
     }
 
     /// Wait for all active jobs to complete

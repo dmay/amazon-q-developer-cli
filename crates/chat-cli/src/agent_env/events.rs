@@ -23,12 +23,22 @@ pub enum WorkerLifecycleState {
     IdleFailed,
 }
 
+/// Indicates if a completed job requires user interaction to continue
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UserInteractionRequired {
+    /// No user interaction required - job completed cleanly
+    None,
+    /// Job is waiting for tool approval from user
+    ToolApproval,
+}
+
 /// Job completion results
 #[derive(Debug, Clone)]
 pub enum JobCompletionResult {
     /// Job completed successfully
     Success {
         task_metadata: HashMap<String, serde_json::Value>,
+        user_interaction_required: UserInteractionRequired,
     },
     /// Job was cancelled
     Cancelled,
@@ -276,6 +286,7 @@ mod tests {
             job_id: Uuid::new_v4(),
             result: JobCompletionResult::Success {
                 task_metadata: std::collections::HashMap::new(),
+                user_interaction_required: UserInteractionRequired::None,
             },
             timestamp,
         });

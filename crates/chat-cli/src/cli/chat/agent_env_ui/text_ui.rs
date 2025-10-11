@@ -21,6 +21,7 @@ pub struct TextUi {
     cmd_receiver: Arc<std::sync::Mutex<Option<mpsc::Receiver<PromptResult>>>>,
     prompt_ready: Arc<Notify>,
     shutdown_signal: Arc<Notify>,
+    interactive: bool,
 }
 
 impl TextUi {
@@ -29,6 +30,7 @@ impl TextUi {
         session: Arc<Session>,
         main_worker_id: Uuid,
         history_path: Option<PathBuf>,
+        interactive: bool,
     ) -> Result<Self, eyre::Error> {
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
         
@@ -40,6 +42,7 @@ impl TextUi {
             cmd_receiver: Arc::new(std::sync::Mutex::new(Some(cmd_receiver))),
             prompt_ready: Arc::new(Notify::new()),
             shutdown_signal: Arc::new(Notify::new()),
+            interactive,
         })
     }
     
@@ -150,17 +153,21 @@ impl TextUi {
 #[async_trait]
 impl crate::agent_env::UserInterface for TextUi {
     async fn start(&self) -> Result<(), eyre::Error> {
-        // Spawn prompt loop task
-        tracing::info!("TextUi: Starting prompt loop");
-        self.spawn_prompt_loop();
-        
-        // Check if worker is already Idle and signal prompt_ready if so
-        let worker = self.session.get_worker(self.main_worker_id)
-            .ok_or_else(|| eyre::eyre!("Worker not found"))?;
-        let current_state = *worker.lifecycle_state.lock().unwrap();
-        if current_state == WorkerLifecycleState::Idle {
-            tracing::info!("TextUi: Worker is idle, enabling prompt");
-            self.prompt_ready.notify_one();
+        // Spawn prompt loop task only in interactive mode
+        if self.interactive {
+            tracing::info!("TextUi: Starting prompt loop");
+            self.spawn_prompt_loop();
+            
+            // Check if worker is already Idle and signal prompt_ready if so
+            let worker = self.session.get_worker(self.main_worker_id)
+                .ok_or_else(|| eyre::eyre!("Worker not found"))?;
+            let current_state = *worker.lifecycle_state.lock().unwrap();
+            if current_state == WorkerLifecycleState::Idle {
+                tracing::info!("TextUi: Worker is idle, enabling prompt");
+                self.prompt_ready.notify_one();
+            }
+        } else {
+            tracing::info!("TextUi: Non-interactive mode, skipping prompt loop");
         }
         
         Ok(())
