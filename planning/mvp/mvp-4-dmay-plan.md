@@ -6,9 +6,9 @@
 - [x] Analyzed
 - [x] Designed
 - [x] Planned
-- [ ] Implemented
+- [x] Implemented
   - [x] Task 1.1: --no-interactive support
-  - [ ] Task 1.6: StructuredIO enhancements
+  - [x] Task 1.6: StructuredIO enhancements
 
 **Files:**
 - Scope: `planning/mvp-small-wins/mvp-small-wins-0-scope.md`

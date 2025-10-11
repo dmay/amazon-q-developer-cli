@@ -155,31 +155,31 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 6.1 Remove main_worker_id Filtering
 
-- [ ] **Remove main_worker_id field from StructuredIO** (Design Doc §3.1)
+- [x] **Remove main_worker_id field from StructuredIO** (Design Doc §3.1)
   - Remove `main_worker_id: Uuid` field from struct
   - Remove parameter from `new()` signature
   - Remove all filtering logic in `handle_event()` that checks worker_id
 
 ### 6.2 Add WorkerEvent Handlers
 
-- [ ] **Add WorkerEvent::Created handler** (Design Doc §3.1)
+- [x] **Add WorkerEvent::Created handler** (Design Doc §3.1)
   - Add match arm for `AgentEnvironmentEvent::Worker(WorkerEvent::Created { ... })`
   - Create JSON object with fields: event="worker_created", worker_id, name, timestamp
   - Lock output_writer, write JSON line, flush
 
-- [ ] **Add WorkerEvent::Deleted handler** (Design Doc §3.1)
+- [x] **Add WorkerEvent::Deleted handler** (Design Doc §3.1)
   - Add match arm for `AgentEnvironmentEvent::Worker(WorkerEvent::Deleted { ... })`
   - Create JSON object with fields: event="worker_deleted", worker_id, timestamp
   - Lock output_writer, write JSON line, flush
 
 ### 6.3 Add JobEvent Handlers
 
-- [ ] **Add JobEvent::Started handler** (Design Doc §3.1)
+- [x] **Add JobEvent::Started handler** (Design Doc §3.1)
   - Add match arm for `AgentEnvironmentEvent::Job(JobEvent::Started { ... })`
   - Create JSON object with fields: event="job_started", worker_id, job_id, task_type, timestamp
   - Lock output_writer, write JSON line, flush
 
-- [ ] **Add JobEvent::Completed handler** (Design Doc §3.1)
+- [x] **Add JobEvent::Completed handler** (Design Doc §3.1)
   - Add match arm for `AgentEnvironmentEvent::Job(JobEvent::Completed { ... })`
   - Map result to string: Success→"success", Cancelled→"cancelled", Failed→"failed"
   - Create JSON object with fields: event="job_completed", worker_id, job_id, result, timestamp
@@ -191,13 +191,13 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 7.1 Reorder Initialization in ChatArgs::execute()
 
-- [ ] **Create StructuredIO before worker** (Design Doc §3.2)
+- [x] **Create StructuredIO before worker** (Design Doc §3.2)
   - Move StructuredIO::new() call to BEFORE session.build_worker() call
   - StructuredIO subscribes to EventBus in constructor
   - Worker creation publishes WorkerEvent::Created
   - StructuredIO receives the event automatically
 
-- [ ] **Update TextUi initialization order** (Design Doc §3.2)
+- [x] **Update TextUi initialization order** (Design Doc §3.2)
   - TextUi currently needs worker_id in constructor
   - Create TextUi with placeholder Uuid::nil() before worker creation
   - Add `set_main_worker_id()` method to TextUi
@@ -209,37 +209,37 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 8.1 Refactor spawn_input_reader() with Reader Task Pattern
 
-- [ ] **Create channel for line communication** (Design Doc §3.3)
+- [x] **Create channel for line communication** (Design Doc §3.3)
   - Create `mpsc::channel::<String>(10)` for sending lines from reader to processor
   - Split into `line_tx` (sender) and `line_rx` (receiver)
 
-- [ ] **Spawn dedicated stdin reader task** (Design Doc §3.3)
+- [x] **Spawn dedicated stdin reader task** (Design Doc §3.3)
   - Spawn tokio task that creates BufReader from stdin
   - Loop on `lines.next_line().await` (this task will block)
   - Send each line to `line_tx` channel
   - Break on EOF or send error
 
-- [ ] **Implement processor loop with tokio::select!** (Design Doc §3.3)
+- [x] **Implement processor loop with tokio::select!** (Design Doc §3.3)
   - Main loop uses `tokio::select!` on two branches
   - Branch 1: `Some(line) = line_rx.recv()` - process incoming lines
   - Branch 2: `_ = shutdown.notified()` - handle shutdown signal
   - Parse JSON and handle commands in Branch 1
   - Break from loop in Branch 2
 
-- [ ] **Abort reader task on shutdown** (Design Doc §3.3)
+- [x] **Abort reader task on shutdown** (Design Doc §3.3)
   - Store reader task JoinHandle
   - Call `reader_task.abort()` when processor loop exits
   - Await the handle and ignore JoinError (expected from abort)
 
 ### 8.2 Update Command Parsing
 
-- [ ] **Parse quit command** (Design Doc §3.3)
+- [x] **Parse quit command** (Design Doc §3.3)
   - Match on `{"command":"quit"}`
   - Send `PromptResult::Command(AgentEnvironmentCommand::Quit)` to cmd_sender
   - Call `shutdown.notify_waiters()`
   - Break from processor loop
 
-- [ ] **Parse prompt command** (Design Doc §3.3)
+- [x] **Parse prompt command** (Design Doc §3.3)
   - Match on `{"command":"prompt"}`
   - Extract `text` field (required)
   - Extract `worker_id` field (optional, defaults to first worker from session)

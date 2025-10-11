@@ -1,6 +1,6 @@
 use crate::agent_env::{
-    AgentEnvironmentCommand, AgentEnvironmentEvent, AgentLoopEvent, PromptResult, Session,
-    UserInterface, WorkerEvent, WorkerLifecycleState,
+    AgentEnvironmentCommand, AgentEnvironmentEvent, AgentLoopEvent, JobCompletionResult, JobEvent,
+    PromptResult, Session, UserInterface, WorkerEvent, WorkerLifecycleState,
 };
 use async_trait::async_trait;
 use eyre::Result;
@@ -8,7 +8,7 @@ use serde_json::json;
 use std::io::Write;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::{mpsc, Mutex as TokioMutex};
+use tokio::sync::{mpsc, Mutex as TokioMutex, Notify};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
@@ -18,11 +18,11 @@ use uuid::Uuid;
 /// Suitable for scripting and automation where commands may be piped in.
 pub struct StructuredIO {
     session: Arc<Session>,
-    main_worker_id: Uuid,
     cmd_sender: mpsc::Sender<PromptResult>,
     cmd_receiver: Arc<TokioMutex<Option<mpsc::Receiver<PromptResult>>>>,
     output_writer: Arc<TokioMutex<Box<dyn Write + Send>>>,
     interactive: bool,
+    shutdown_signal: Arc<Notify>,
 }
 
 impl StructuredIO {
@@ -30,69 +30,149 @@ impl StructuredIO {
     ///
     /// Returns tuple of (StructuredIO, Receiver) following Option C pattern from design.
     /// The receiver should be passed to AgentEnvironment.
-    pub fn new(session: Arc<Session>, main_worker_id: Uuid, interactive: bool) -> Result<Self> {
+    pub fn new(session: Arc<Session>, interactive: bool) -> Result<Self> {
         let (cmd_sender, cmd_receiver) = mpsc::channel(10);
 
         Ok(Self {
             session,
-            main_worker_id,
             cmd_sender,
             cmd_receiver: Arc::new(TokioMutex::new(Some(cmd_receiver))),
             output_writer: Arc::new(TokioMutex::new(Box::new(std::io::stdout()))),
             interactive,
+            shutdown_signal: Arc::new(Notify::new()),
         })
     }
 
-    /// Spawn input reader task (always reading)
+    /// Spawn input reader task with reader task pattern for responsive quit
     fn spawn_input_reader(&self) -> JoinHandle<()> {
         let cmd_sender = self.cmd_sender.clone();
-        let main_worker_id = self.main_worker_id;
+        let session = self.session.clone();
+        let shutdown = self.shutdown_signal.clone();
 
         tokio::spawn(async move {
             tracing::info!("StructuredIO input reader: task started");
-            let stdin = tokio::io::stdin();
-            let reader = BufReader::new(stdin);
-            let mut lines = reader.lines();
-
-            while let Ok(Some(line)) = lines.next_line().await {
-                let line = line.trim();
-
-                if line.is_empty() {
-                    continue;
+            
+            // Create channel for line communication
+            let (line_tx, mut line_rx) = mpsc::channel::<String>(10);
+            
+            // Spawn dedicated stdin reader task (this will block on stdin)
+            let reader_task = tokio::spawn(async move {
+                let stdin = tokio::io::stdin();
+                let reader = BufReader::new(stdin);
+                let mut lines = reader.lines();
+                
+                while let Ok(Some(line)) = lines.next_line().await {
+                    if line_tx.send(line).await.is_err() {
+                        break; // Channel closed
+                    }
                 }
+                tracing::info!("StructuredIO stdin reader: EOF reached or channel closed");
+            });
+            
+            // Processor loop with tokio::select! for responsive shutdown
+            loop {
+                tokio::select! {
+                    // Branch 1: Process incoming lines
+                    Some(line) = line_rx.recv() => {
+                        let line = line.trim();
 
-                // Try to parse as JSON command, otherwise treat as plain text prompt
-                let result = if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                    if let Some(cmd_str) = json.get("command").and_then(|v| v.as_str()) {
-                        match cmd_str {
-                            "quit" => PromptResult::Shutdown,
-                            _ => {
-                                // Unknown command - treat whole line as prompt
+                        if line.is_empty() {
+                            continue;
+                        }
+
+                        // Try to parse as JSON command, otherwise treat as plain text prompt
+                        let result = if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                            if let Some(cmd_str) = json.get("command").and_then(|v| v.as_str()) {
+                                match cmd_str {
+                                    "quit" => {
+                                        // Send shutdown command
+                                        if cmd_sender.send(PromptResult::Shutdown).await.is_ok() {
+                                            tracing::info!("StructuredIO: Quit command sent");
+                                        }
+                                        // Trigger internal shutdown
+                                        shutdown.notify_waiters();
+                                        break;
+                                    }
+                                    "prompt" => {
+                                        // Extract worker_id (optional) and text (required)
+                                        let worker_id = json
+                                            .get("worker_id")
+                                            .and_then(|v| v.as_str())
+                                            .and_then(|s| Uuid::parse_str(s).ok())
+                                            .or_else(|| {
+                                                // Default to first worker
+                                                session.get_workers().first().map(|w| w.id)
+                                            });
+
+                                        let text = json
+                                            .get("text")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("")
+                                            .to_string();
+
+                                        if let Some(wid) = worker_id {
+                                            PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                                                worker_id: wid,
+                                                text,
+                                            })
+                                        } else {
+                                            // No workers available - skip
+                                            continue;
+                                        }
+                                    }
+                                    _ => {
+                                        // Unknown command - treat whole line as prompt
+                                        if let Some(worker_id) = session.get_workers().first().map(|w| w.id)
+                                        {
+                                            PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                                                worker_id,
+                                                text: line.to_string(),
+                                            })
+                                        } else {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // No command field - treat as prompt
+                                if let Some(worker_id) = session.get_workers().first().map(|w| w.id) {
+                                    PromptResult::Command(AgentEnvironmentCommand::Prompt {
+                                        worker_id,
+                                        text: line.to_string(),
+                                    })
+                                } else {
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Not JSON - treat as plain text prompt
+                            if let Some(worker_id) = session.get_workers().first().map(|w| w.id) {
                                 PromptResult::Command(AgentEnvironmentCommand::Prompt {
-                                    worker_id: main_worker_id,
+                                    worker_id,
                                     text: line.to_string(),
                                 })
+                            } else {
+                                continue;
                             }
-                        }
-                    } else {
-                        // No command field - treat as prompt
-                        PromptResult::Command(AgentEnvironmentCommand::Prompt {
-                            worker_id: main_worker_id,
-                            text: line.to_string(),
-                        })
-                    }
-                } else {
-                    // Not JSON - treat as plain text prompt
-                    PromptResult::Command(AgentEnvironmentCommand::Prompt {
-                        worker_id: main_worker_id,
-                        text: line.to_string(),
-                    })
-                };
+                        };
 
-                if cmd_sender.send(result).await.is_err() {
-                    break; // Channel closed
+                        if cmd_sender.send(result).await.is_err() {
+                            break; // Channel closed
+                        }
+                    }
+                    
+                    // Branch 2: Handle shutdown signal
+                    _ = shutdown.notified() => {
+                        tracing::info!("StructuredIO input reader: shutdown signal received");
+                        break;
+                    }
                 }
             }
+            
+            // Abort reader task on shutdown
+            reader_task.abort();
+            let _ = reader_task.await; // Ignore JoinError from abort
+            tracing::info!("StructuredIO input reader: task exited");
         })
     }
 }
@@ -119,15 +199,38 @@ impl UserInterface for StructuredIO {
     }
 
     async fn handle_event(&self, event: AgentEnvironmentEvent) {
-        // Filter to main worker
-        if let Some(wid) = event.worker_id() {
-            if wid != self.main_worker_id {
-                return;
-            }
-        }
-
         // Handle events
         match event {
+            AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+                worker_id,
+                name,
+                timestamp,
+            }) => {
+                let json = json!({
+                    "event": "worker_created",
+                    "worker_id": worker_id,
+                    "name": name,
+                    "timestamp": format!("{:?}", timestamp),
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::Worker(WorkerEvent::Deleted {
+                worker_id,
+                timestamp,
+            }) => {
+                let json = json!({
+                    "event": "worker_deleted",
+                    "worker_id": worker_id,
+                    "timestamp": format!("{:?}", timestamp),
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
             AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged {
                 worker_id,
                 new_state,
@@ -142,6 +245,48 @@ impl UserInterface for StructuredIO {
                 let json = json!({
                     "worker_id": worker_id,
                     "lifecycle_state": state_str,
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::Job(JobEvent::Started {
+                worker_id,
+                job_id,
+                task_type,
+                timestamp,
+            }) => {
+                let json = json!({
+                    "event": "job_started",
+                    "worker_id": worker_id,
+                    "job_id": job_id,
+                    "task_type": task_type,
+                    "timestamp": format!("{:?}", timestamp),
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::Job(JobEvent::Completed {
+                worker_id,
+                job_id,
+                result,
+                timestamp,
+            }) => {
+                let result_str = match result {
+                    JobCompletionResult::Success { .. } => "success",
+                    JobCompletionResult::Cancelled => "cancelled",
+                    JobCompletionResult::Failed { .. } => "failed",
+                };
+
+                let json = json!({
+                    "event": "job_completed",
+                    "worker_id": worker_id,
+                    "job_id": job_id,
+                    "result": result_str,
+                    "timestamp": format!("{:?}", timestamp),
                 });
 
                 let mut writer = self.output_writer.lock().await;
@@ -220,12 +365,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_structured_io_filters_events_by_worker_id() {
+    async fn test_structured_io_outputs_events_for_all_workers() {
         let session = create_test_session();
         let main_worker = session.build_worker("main".to_string());
         let other_worker = session.build_worker("other".to_string());
 
-        let structured_io = StructuredIO::new(session.clone(), main_worker.id).unwrap();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
 
         // Event for main worker - should be processed
         let event1 = AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived {
@@ -235,7 +380,7 @@ mod tests {
             timestamp: std::time::Instant::now(),
         });
 
-        // Event for other worker - should be filtered out
+        // Event for other worker - should also be processed
         let event2 = AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived {
             worker_id: other_worker.id,
             job_id: Uuid::new_v4(),
@@ -243,7 +388,7 @@ mod tests {
             timestamp: std::time::Instant::now(),
         });
 
-        // Both should complete without error (filtering happens internally)
+        // Both should complete without error
         structured_io.handle_event(event1).await;
         structured_io.handle_event(event2).await;
     }
@@ -253,7 +398,7 @@ mod tests {
         let session = create_test_session();
         let main_worker = session.build_worker("main".to_string());
 
-        let structured_io = StructuredIO::new(session.clone(), main_worker.id).unwrap();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
 
         let event = AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived {
             worker_id: main_worker.id,
@@ -271,7 +416,7 @@ mod tests {
         let session = create_test_session();
         let main_worker = session.build_worker("main".to_string());
 
-        let structured_io = StructuredIO::new(session.clone(), main_worker.id).unwrap();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
 
         let event = AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ToolUseRequestReceived {
             worker_id: main_worker.id,
@@ -288,9 +433,9 @@ mod tests {
     #[tokio::test]
     async fn test_command_receiver_single_use() {
         let session = create_test_session();
-        let main_worker = session.build_worker("main".to_string());
+        let _main_worker = session.build_worker("main".to_string());
 
-        let structured_io = StructuredIO::new(session.clone(), main_worker.id).unwrap();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
 
         // First call should succeed
         let _receiver = structured_io.command_receiver();

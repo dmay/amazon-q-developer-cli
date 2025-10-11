@@ -324,6 +324,12 @@ impl Session {
         workers.iter().find(|w| w.id == worker_id).cloned()
     }
     
+    /// Get all workers
+    pub fn get_workers(&self) -> Vec<Arc<Worker>> {
+        let workers = self.workers.lock().unwrap();
+        workers.clone()
+    }
+    
     /// Cancel all jobs for a specific worker
     pub fn cancel_worker_jobs(&self, worker_id: Uuid) -> Result<(), eyre::Error> {
         let jobs = self.jobs.lock().unwrap();

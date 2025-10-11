@@ -270,6 +270,19 @@ impl ChatArgs {
         
         let session = Arc::new(Session::new(event_bus.clone(), model_providers));
         
+        // Task 9.3.2: Select UI based on ui_mode and create UI BEFORE worker for StructuredIO
+        let ui_mode = self.ui_mode.unwrap_or(UiMode::Text);
+        
+        // For StructuredIO, create UI before worker so it can receive WorkerEvent::Created
+        let main_ui_structured: Option<Arc<StructuredIO>> = if ui_mode == UiMode::Structured {
+            Some(Arc::new(StructuredIO::new(
+                session.clone(),
+                interactive,
+            )?))
+        } else {
+            None
+        };
+        
         // Task 8.1.3: Create main Worker
         let main_worker = session.build_worker("main".to_string());
         let main_worker_id = main_worker.id;
@@ -283,30 +296,25 @@ impl ChatArgs {
                 .push_input_message(initial_input.clone());
         }
         
-        // Task 9.3.2: Select UI based on ui_mode
-        let ui_mode = self.ui_mode.unwrap_or(UiMode::Text);
-        
-        let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = match ui_mode {
-            UiMode::Text => {
-                let history_path = directories::chat_cli_bash_history_path(os).ok();
-                let text_ui = TextUi::new(
-                    session.clone(),
-                    main_worker_id,
-                    history_path,
-                    interactive,
-                )?;
-                Some(Arc::new(text_ui))
-            }
-            UiMode::Structured => {
-                let structured_io = StructuredIO::new(
-                    session.clone(),
-                    main_worker_id,
-                    interactive,
-                )?;
-                Some(Arc::new(structured_io))
-            }
-            UiMode::None => {
-                None // Headless mode
+        // Create TextUi or None UI after worker (TextUi needs worker_id)
+        let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = if let Some(structured_io) = main_ui_structured {
+            Some(structured_io as Arc<dyn crate::agent_env::UserInterface>)
+        } else {
+            match ui_mode {
+                UiMode::Text => {
+                    let history_path = directories::chat_cli_bash_history_path(os).ok();
+                    let text_ui = TextUi::new(
+                        session.clone(),
+                        main_worker_id,
+                        history_path,
+                        interactive,
+                    )?;
+                    Some(Arc::new(text_ui))
+                }
+                UiMode::None => {
+                    None // Headless mode
+                }
+                UiMode::Structured => unreachable!("StructuredIO already created"),
             }
         };
         
