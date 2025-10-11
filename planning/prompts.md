@@ -702,3 +702,39 @@ Note that some workflows can depend on others, fully or partially (for example, 
 Note that some workflows will need more scope/requirements clarification. For example Tools subsystem design could require advanced approval system, with state attched to each worker
 
 ----
+
+# ✅ MVP - Iteration: Analysys
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+Your goal is to proceed with analysys and research for the next workflow that noy yet been analyzed:
+- Identify workflow to analyze
+- Read its scope document
+- Check if the research document had been created, read it
+- Proceed with the research and analysys
+- After done - check 'Analyzed' for this workflow in the primary plan sheet
+    - DO NOT make any other changes to this file, all extra information must go to the research document
+
+Research and analysys process:
+- Identify elemets of the system that are related to the selected workflow
+- Look through the documentation and the code for those elements
+- Summarize your findings in the research document for the selected workflow (use the path from the primary plan sheet)
+    - Note: you don't need to _solve_ the problem defined in the workflow, you are gathering information for the actual design process
+    - Explain the landscape for the related code elements and their specs and responsibility
+    - Look for potential pitfalls and underwater stones that could complicate the goal of the workflow
+        - For example, a critical piece of existing code (an API client) is a static object with global shared state, but we need it to be worker-specific; or 
+    - Identify the most important elements of the code for the goal of the workflow
+    - The document should provide a solid foundation for the following tech design stage.
+        - Consider that on tech design we can identify and compare several approaches to reach the goal
+
+Proceed with the next analysys.
+
+----
