@@ -7,11 +7,21 @@ This workflow covers quick implementation tasks that provide immediate value and
 ## Tasks Included
 
 ### 1.1: --no-interactive Support
+
 ### 1.6: StructuredIO Enhancements
 
 ---
 
 ## Task 1.1: --no-interactive Support
+
+I want to be able to run CLI tool in non-interactive mode, when it would process provided task (prompt provided through CLI argimgents) and complete.
+
+There are two states a task can complete in:
+
+- clean, when the loop was completed with agent's response (normally UI would wait for a simple prompt here)
+- non-clean, when the loop was completed with waiting for tool use approval (normally UI would wait for tool approval signal here)
+
+CLI tool must indicate when the task completed in non-clean state, and exit anyway.
 
 ### Current State
 
@@ -24,29 +34,37 @@ This workflow covers quick implementation tasks that provide immediate value and
 ### Requirements
 
 **Core Behavior:**
+
 - When `--no-interactive` flag is set, the CLI should:
   1. Process only the initial input provided via command line
   2. Execute the agent loop once
   3. Exit cleanly after task completion
   4. Not spawn any input reading tasks
   5. Not display prompts or wait for user input
+  6. Indicate if the task completed clearly. I.e AgentLoop completed waiting for a prompt, and NOT for a tool approval.
+     1. That could require an extra flag that tasks could report back on completion. Right now we only have success/fail state on Job level, but here we introduce semantical, but NOT specific to AgentLoop, exit flag. Remember, the forwaqrd vision is to have multiple possible tasks, which can be launched in various ways, and some could also expect approval-like or required-arguments-like input to continue execution.
+     2. Another option is to let AgentEnvironment to scan task_metadata in active workers, to see if AgentLoop (or any other specific task added in the future) has its specific flag that indicates required user input.
 
 **UI-Specific Requirements:**
 
 **TextUi:**
+
 - Skip prompt loop spawn entirely when flag is set
 - Display output normally (streaming responses)
 - Exit after initial job completes
 
 **StructuredIO:**
+
 - Skip stdin reader task spawn when flag is set
 - Output JSON events normally
 - Exit after initial job completes
 
 **AgentEnvironment:**
+
 - Track initial jobs created at startup
 - Monitor active job count
 - Initiate shutdown when no active jobs remain (after initial jobs complete)
+- Confirm all workers remain in clean state (none have flags in task metadata that indicate task ended waiting for user input, like tools approval). Instruct active UI to display a warning about non-clean abort.
 - Ensure clean cancellation and resource cleanup
 
 ### Implementation Approach
@@ -57,7 +75,7 @@ This workflow covers quick implementation tasks that provide immediate value and
 4. Add job tracking to AgentEnvironment:
    - Track initial job IDs created before run() is called
    - Subscribe to JobEvent::Completed events
-   - When all initial jobs complete and no new jobs exist, trigger shutdown
+   - When JobEvent::Completed received, and there's no active jobs in the session's list, trigger shutdown
 5. Test both UI modes with and without the flag
 
 ### Acceptance Criteria
@@ -92,17 +110,21 @@ None - can be implemented immediately
 ### Requirements
 
 **Event Display:**
+
 - Display WorkerEvent::Created when workers are created
 - Display WorkerEvent::Deleted when workers are deleted
+- Display JobEvent::Started and ::Completed accordingly
 - Ensure events are received before Session starts sending them
 - Maintain proper event ordering
 
 **Quit Command Handling:**
+
 - `{"command":"quit"}` should immediately interrupt and exit
 - Current implementation may block on `lines.next_line()` preventing immediate response
 - Need to investigate if input reading blocks quit command processing
 
 **Event Ordering:**
+
 - EventBus subscription must happen before any Session operations
 - Initial worker creation event must be captured
 - All lifecycle events must appear in correct order
@@ -110,22 +132,25 @@ None - can be implemented immediately
 ### Implementation Approach
 
 1. **Investigate Input Blocking:**
+
    - Test if `lines.next_line()` blocks quit command handling
    - If blocking occurs, replace with interruptible input method:
      - Option A: Use tokio::select! with stdin reader and command channel
      - Option B: Use channel-based input reading with separate task
-   
+     - Identify more oprtions, if available
 2. **Add Event Handlers:**
+
    - Add WorkerEvent::Created handler to StructuredIO::handle_event()
    - Add WorkerEvent::Deleted handler to StructuredIO::handle_event()
    - Format events as JSON output
-
 3. **Verify Event Timing:**
+
    - Review StructuredIO::new() to ensure EventBus subscription happens first
    - Review ChatArgs::execute() to ensure UI is created before Session operations
+     - This also applies to TextUi, it should also be able to handle all events from the start
    - Add test to verify initial worker creation event is captured
-
 4. **Test Quit Command:**
+
    - Test: `echo '{"command":"quit"}' | q chat --ui-mode=structured`
    - Verify immediate exit without blocking
    - Verify proper cleanup
@@ -144,6 +169,7 @@ None - can be implemented immediately
 **Input Reading Options:**
 
 Current (potentially blocking):
+
 ```rust
 while let Some(line) = lines.next_line().await? {
     // Process line
@@ -151,6 +177,7 @@ while let Some(line) = lines.next_line().await? {
 ```
 
 Option A - tokio::select!:
+
 ```rust
 loop {
     tokio::select! {
@@ -165,12 +192,14 @@ loop {
 ```
 
 Option B - Channel-based:
+
 ```rust
 // Separate task reads stdin and sends to channel
 // Main loop uses tokio::select! on channel and shutdown signal
 ```
 
 **Event JSON Format:**
+
 ```json
 {
   "event": "worker_created",
@@ -192,12 +221,14 @@ None - can be implemented immediately
 ## Success Metrics
 
 ### Task 1.1 Success
+
 - Both UI modes support --no-interactive
 - Clean exit after single execution
 - No resource leaks or hanging processes
 - Proper exit codes
 
 ### Task 1.6 Success
+
 - All worker lifecycle events visible in StructuredIO
 - Quit command responds immediately
 - Event ordering is correct and complete
@@ -217,6 +248,7 @@ Both tasks are independent and can be implemented in parallel if needed.
 ## Testing Strategy
 
 ### Task 1.1 Tests
+
 ```bash
 # Test TextUi non-interactive
 q chat --no-interactive "What is 2+2?"
@@ -232,6 +264,7 @@ q chat --no-interactive "Write a hello world program in Python"
 ```
 
 ### Task 1.6 Tests
+
 ```bash
 # Test quit command
 echo '{"command":"quit"}' | q chat --ui-mode=structured
@@ -248,6 +281,7 @@ q chat --ui-mode=structured "hello" | jq -c '.event' | head -20
 ## Documentation Updates
 
 After implementation:
+
 - Update ChatArgs documentation for --no-interactive flag
 - Update StructuredIO documentation with event types
 - Add examples to README
@@ -258,12 +292,14 @@ After implementation:
 ## Related Files
 
 **Task 1.1:**
+
 - `crates/chat-cli/src/cli/chat/mod.rs` - ChatArgs::execute()
 - `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs` - TextUi implementation
 - `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs` - StructuredIO implementation
 - `crates/chat-cli/src/agent_env/agent_environment.rs` - AgentEnvironment main loop
 
 **Task 1.6:**
+
 - `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs` - StructuredIO implementation
 - `crates/chat-cli/src/agent_env/events.rs` - Event type definitions
 - `crates/chat-cli/src/agent_env/event_bus.rs` - EventBus implementation

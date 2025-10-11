@@ -738,3 +738,64 @@ Research and analysys process:
 Proceed with the next analysys.
 
 ----
+
+# MVP - Iteration: Design
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+Your goal is to proceed with design for the next workflow that noy yet been designed:
+- Identify workflow to design
+- Read its scope and research documents
+- Check if the design document had been created, read it
+- Proceed with the design
+- After done - check 'Designed' for this workflow in the primary plan sheet
+    - DO NOT make any other changes to this file, all extra information must go to the research document
+
+Design process:
+- Identify elemets of the system that are related to the problems in the selected workflow
+- Create a technical design for the problems
+    - Some of the problems in the workflow can have more than one solution. In such case create design options for each possible solution (not more than 3 though). We will identify and choose appropriate one later.
+- Summarize the design in the design document for the selected workflow (use the path from the primary plan sheet)
+
+Process hints:
+- The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to design, and work through it. Use file '<design_file_name>-progress.md' as work status tracker.
+- For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
+- The final document most likely will be too big to write all at once. Create a to-do list with the sections of the document, then create each section separatly and append to the same file.
+
+Proceed with the next design.
+
+## Steering - Small Wins
+
+- Task 1.1: --no-interactive
+    - JobCompletionResult.waiting_for_input is not a good name. Let's make it a enum 'InteractionRequested{None, ToolApproval}' and call this field appropriately
+        - Give better name suggestions, if you have any
+    - AgentEnvironment.register_initial_job is not really necessary for the non-interactive: the condition for AgentEnvironment to initiate shutdown would be 'received Job_Completed event, and Session.jobs don't have any active jobs' (this could require an extra method on Sessions)
+    - `tokio::spawn(async move { if !no_interactive { return; } ...` - why not `if (no_interactive) {tokio::spawn...}`?
+    - "**No initial jobs**" - basically mean no_interactive, but no initial tasks were spawned. Must complete with a error, same as when job completede in non-clean state
+    - "**Job completes before monitoring starts**" - can we just start monitorig before spawning jobs? 
+    - Can we flip `no_interactive` to `interactive` inside the code? It's easier to understand than a negative variable name. (Retain `--no-interactive` though, users expect interactive being the default mode)
+    - `ChatArgs.execute`, "// ... create EventBus, Session, Worker ..." - worker should be created after main ui and agent env
+- Task 1.6: StructuredIO Enhancements
+    - StructuredIO MUST NOT filter to main_worker_id, it's structured so it can safely output signals from ALL workers. With structured prompt (`{"worker_id":"...","prompt":"..."}) it can also start tasks for any worker.
+    - StructuredIO doesn't need to care about main_worker_id at all
+        - Note that TextUi and probably some other future implementation _will_ have to care
+    - StructuredIO must also liten to JobEvent::Started and JobEvent::Completed (NO Completed::OutputChunk)
+    - For "2. Fix Event Timing" - proceed with Option A
+    - For "3. Fix Quit Command Blocking" - i've already tried the suggested option, seems like `lines.next_line()` blocks everything and everywhere, so it does not work. Consider using different input method alltogether?
+        - OR, can we send <Enter> to the stdin ourselves for `lines.next_line()` to complete?
+        - Also look at how TextUi handles `shutdown_signal: Arc<Notify>` - can we use similar approach? Maybe similar code based on `InputHandler`?
+        - Look at planning/mvp-small-wins/chatgpt-newline-recomendations.md - maybe it would provide some useful ideas?
+
+## Steering - Small wins
+- Task 1.1: --no-interactive
+    - `Session.has_active_jobs` - does Session actually clean the jobs on completion? I believe they remain in the Vec untill a dedicated cleanup method is called? Double-check in the code.
+    
+
+----

@@ -4,7 +4,7 @@
 
 ### 1. mvp-small-wins
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Task 1.1: --no-interactive support
