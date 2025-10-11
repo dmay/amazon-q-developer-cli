@@ -663,3 +663,42 @@ Write following files:
         - "- Ensure proper quit command handling with `{"command":"quit"}`" - it could be that we need to replace `lines.next_line()` with some more adwanced interruptable input method
 
 ----
+
+# ✅ MVP - divide and conquer
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-0-scope.md
+- planning/mvp/mvp-1-detailed-scope.md - structured explanation of the bigger and smaller tasks, whatever information about them you can find, various solution options where available
+- planning/mvp/mvp-2-scope-processing-plan.md - Task list to process. The result of those tasks are either implementation of smaller tasks, or plan & design bor bigger tasks (those will be converted into their own implementation plans separately)
+
+Your main goal is to create sepatate folders in planning/ folder for the sub-tasks:
+- planning/mvp-small-wins - for the small tasks
+    - 1.1: --no-interactive support
+    - 1.6: StructuredIO enhancements
+- planning/mvp-agent-and-context
+    - 1.4: --agent context loading
+    - 1.2: History accumulation (this one is actually "passing history to LLM")
+- planning/mvp-tools-basic
+    - 1.3: Tool system integration (the goal is to implement two basic tools, fs_read and fs_write, and create a stratedy instrcution how to migrate others)
+- planning/mvp-tools-mcp
+    - 3.1: MCP integration
+    - 3.2: Worker-specific MCP
+- planning/mvp-codewhisperer
+    - 1.5: CodeWhisperer model provider
+- planning/mvp-webui
+    - 2.1: Web UI
+
+Each folder must contain a file named like <foldername>-0-scope.md
+This is going to be basically the task scope for each of workflows - human-friendly spec for new feature(s) to add/improve.
+This file must contain as much information about the scope of this task as reasonably possible. This information will be used to expand to specific technical design and later to implementation plan for each folder.
+Note that some workflows can depend on others, fully or partially (for example, MCP integration could affect which signals wenbAPI has to send through the websocket)
+Note that some workflows will need more scope/requirements clarification. For example Tools subsystem design could require advanced approval system, with state attched to each worker
+
+----
