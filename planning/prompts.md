@@ -797,5 +797,106 @@ Proceed with the next design.
 - Task 1.1: --no-interactive
     - `Session.has_active_jobs` - does Session actually clean the jobs on completion? I believe they remain in the Vec untill a dedicated cleanup method is called? Double-check in the code.
     
+----
+
+# MVP - Iteration: Planning
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+**Your goal** is to proceed with the implementation plan for the next workflow that has been analyzed and designed, but has not yet been planned:
+- Identify workflow to plan
+- Read its scope, research, and design documents
+- Check if the plan document had been created, read it
+- Proceed with the planning
+- After done - check 'Planned' for this workflow in the primary plan sheet
+    - DO NOT make any other changes to this file, all extra information must go to the research document
+
+**Planning process:**
+- Identify elements of the design, and their dependencies on each other
+- Create an implementation plan
+- Summarize the design in the design document for the selected workflow (use the path from the primary plan sheet)
+
+**Planning guidelines:**
+- Produce a **Markdown checklist** of tasks for project implementation.  
+- **Output format:**  
+  - Each task must start with a heading or bullet point that includes `[ ]` (to mark as complete later).  
+  - Subtasks should be indented under their parent task and also include `[ ]`.  
+  - Example:  
+    ```
+    - [ ] Top-level Task (Design Doc §2.3) — one-sentence description of what this achieves.  
+      - [ ] Subtask A (Design Doc §2.3.1) — short description.  
+      - [ ] Subtask B (Design Doc §2.3.2) — short description.  
+    ```
+- **References:**  
+  - Every task must reference the **related section(s) of the design document** in parentheses (e.g., `(Design Doc §4.2)`).  
+- **Descriptions:**  
+  - Each task must have a **short 1–2 sentence description** explaining the purpose or expected outcome.  
+  - Descriptions should be concise, action-focused, and written so another AI can execute them directly.  
+- **Task size:**  
+  - Break tasks down into small, atomic steps.  
+  - Each task should be completable by another assistant with minimal iteration.  
+  - Avoid vague “do everything” steps — prefer specific and scoped tasks.  
+- **Task grouping:**  
+  - Organize by **phases** (e.g., Setup, Core Implementation, Integration, Testing, Deployment).  
+  - Within each phase, group by **components/modules** (e.g., backend, frontend, data pipeline, infra).  
+- **Content guidelines:**  
+  - Use **action-oriented phrasing** (“Implement X,” “Configure Y,” “Write tests for Z”) instead of generic nouns.  
+  - Include necessary **artifacts or deliverables** (e.g., “Implement API endpoint X and update OpenAPI spec”).  
+  - For dependencies, note them as **precedence** (“Requires: ...”).  
+- **Quality control:**  
+  - Ensure all tasks can be objectively marked complete (e.g., “Deploy staging instance with smoke tests passing,” not “Make sure staging looks good”).  
+  - Include **validation steps** (unit tests, integration tests, review steps).  
+- **Optimization best practices:**  
+  - Be explicit in your instructions — avoid ambiguity.  
+  - Keep the plan structured and hierarchical.  
+  - Prefer many small tasks over a few large ones.  
+  - Make implicit assumptions explicit (if setup, environment variables, or configs are needed, include them as tasks).  
+
+
+
+**Process hints:**
+- The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to plan, and work through it. Use file '<plan_file_name>-progress.md' as work status tracker.
+- For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
+- The final document most likely will be too big to write all at once. Create a to-do list with the sections of the document, then create each section separatly and append to the same file.
+
+----
+
+# MVP - Iteration: Planning
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+**Your goal** is to proceed with the implementation for the next available workflow that has been analyzed, designed, and planned, but has not yet been implemented:
+- Identify workflow to work on
+- Read its scope, research, design, and plan documents
+- Check if the log implementation document had been created
+- Proceed with the implementation
+
+**Implementation process**
+- Identify next not implemented task in the implementation plan
+- Implement that task
+- If necessary - update the related documentation in codebase/ folder
+- Write your progress to the implementation log - just append the summary of actions you took at the end
+- Mark the task as completed in the implementation plan - just update `[ ]` to `[x]`, do not modify the task itself.
+
+**IMPORTANT** Refer to "# How to build the Q-CLI project" when you need to do `cargo check`
+**IMPORTANT** Refer to "## Test process" in the same section when you need to do `cargo test`
+**IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
+And use command templates exactly as provided, no modifications!
 
 ----

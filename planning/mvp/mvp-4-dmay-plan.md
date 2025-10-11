@@ -5,7 +5,7 @@
 ### 1. mvp-small-wins
 - [x] Analyzed
 - [x] Designed
-- [ ] Planned
+- [x] Planned
 - [ ] Implemented
   - [ ] Task 1.1: --no-interactive support
   - [ ] Task 1.6: StructuredIO enhancements
