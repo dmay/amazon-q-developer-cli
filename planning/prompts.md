@@ -867,8 +867,6 @@ Read the following files - the task context:
   - Prefer many small tasks over a few large ones.  
   - Make implicit assumptions explicit (if setup, environment variables, or configs are needed, include them as tasks).  
 
-
-
 **Process hints:**
 - The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to plan, and work through it. Use file '<plan_file_name>-progress.md' as work status tracker.
 - For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
