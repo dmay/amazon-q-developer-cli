@@ -44,7 +44,7 @@
 ### 3. mvp-agent-and-context
 - [x] Re-scope, include Codewhisperer Model Provider, include WorkerBuilder concept
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Task 1.2: History accumulation
