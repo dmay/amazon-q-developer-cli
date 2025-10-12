@@ -379,3 +379,64 @@ None - implementation complete as designed.
 **Total Implementation Time**: ~3 hours (both tasks)  
 **Build Status**: ✅ All code compiles successfully  
 **Ready for**: Manual testing and automated test implementation
+
+---
+
+#### 2025-10-11 22:07 - Completed Phase 9.1 & 9.4: Unit Tests
+
+**Phase 9.1: Unit Tests for Task 1.1 (Partial)**
+- Added `test_user_interaction_required_enum` to `events.rs`
+  - Tests enum variants can be constructed
+  - Tests PartialEq implementation
+  - Tests Copy trait
+- Added `test_has_active_jobs_no_jobs` to `session.rs`
+  - Tests returns false when no jobs exist
+- Added `test_has_active_jobs_with_active_job` to `session.rs`
+  - Tests returns true when at least one job is active
+- Added `test_has_active_jobs_after_completion` to `session.rs`
+  - Tests returns false after job completes
+
+**Phase 9.4: Unit Tests for Task 1.6**
+- Added `test_worker_created_event_handler` to `structured_io.rs`
+  - Tests WorkerEvent::Created handler outputs JSON
+- Added `test_worker_deleted_event_handler` to `structured_io.rs`
+  - Tests WorkerEvent::Deleted handler outputs JSON
+- Added `test_job_started_event_handler` to `structured_io.rs`
+  - Tests JobEvent::Started handler outputs JSON
+- Added `test_job_completed_event_handler_success` to `structured_io.rs`
+  - Tests JobEvent::Completed handler with Success result
+- Added `test_job_completed_event_handler_failed` to `structured_io.rs`
+  - Tests JobEvent::Completed handler with Failed result
+- Added `test_job_completed_event_handler_cancelled` to `structured_io.rs`
+  - Tests JobEvent::Completed handler with Cancelled result
+
+**Test Fixes**
+- Added `JobEvent` to imports in `session.rs`
+- Updated all `TextUi::new()` calls in tests to include `interactive` parameter
+- Updated all `ChatArgs` struct initializations in tests to include `ui_mode` field
+
+**Files Modified:**
+- `crates/chat-cli/src/agent_env/events.rs` - Added UserInteractionRequired enum test
+- `crates/chat-cli/src/agent_env/session.rs` - Added has_active_jobs() tests, fixed imports
+- `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs` - Added event handler tests
+- `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs` - Fixed test calls to TextUi::new()
+- `crates/chat-cli/src/cli/mod.rs` - Fixed test ChatArgs initializations
+
+**Test Results:** ✅ All new tests pass
+- `test_user_interaction_required_enum` - PASSED
+- `test_has_active_jobs_no_jobs` - PASSED
+- `test_has_active_jobs_with_active_job` - PASSED
+- `test_has_active_jobs_after_completion` - PASSED
+- `test_worker_created_event_handler` - PASSED
+- `test_worker_deleted_event_handler` - PASSED
+- `test_job_started_event_handler` - PASSED
+- `test_job_completed_event_handler_success` - PASSED
+- `test_job_completed_event_handler_failed` - PASSED
+- `test_job_completed_event_handler_cancelled` - PASSED
+
+**Next Steps:**
+- Remaining unit tests for AgentEnvironment job monitoring (Phase 9.1)
+- Remaining unit tests for UI interactive flags (Phase 9.1)
+- Integration tests (Phase 9.2, 9.5)
+- Manual tests (Phase 9.3, 9.6)
+- Documentation updates (Phase 10)

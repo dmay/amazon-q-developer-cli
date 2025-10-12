@@ -9,6 +9,7 @@
 - [x] Implemented
   - [x] Task 1.1: --no-interactive support
   - [x] Task 1.6: StructuredIO enhancements
+  - [x] Unit tests (partial - core functionality tested)
 
 **Files:**
 - Scope: `planning/mvp-small-wins/mvp-small-wins-0-scope.md`

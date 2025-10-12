@@ -9,7 +9,7 @@ use super::worker_task::WorkerTask;
 use super::model_providers::ModelProvider;
 use super::worker_tasks::{AgentLoop, AgentLoopInput};
 use super::event_bus::EventBus;
-use super::events::{AgentEnvironmentEvent, WorkerEvent, WorkerLifecycleState, UserInteractionRequired};
+use super::events::{AgentEnvironmentEvent, JobEvent, WorkerEvent, WorkerLifecycleState, UserInteractionRequired};
 
 /// Maximum number of inactive jobs to keep in memory
 pub const MAX_INACTIVE_JOBS: usize = 3;
@@ -593,5 +593,63 @@ mod tests {
         
         assert!(got_lifecycle_change, "Did not receive LifecycleStateChanged event");
         assert!(got_job_completed, "Did not receive JobCompleted event");
+    }
+
+    #[test]
+    fn test_has_active_jobs_no_jobs() {
+        let session = create_test_session();
+        
+        // No jobs exist
+        assert!(!session.has_active_jobs());
+    }
+
+    #[tokio::test]
+    async fn test_has_active_jobs_with_active_job() {
+        let session = create_test_session();
+        let worker = session.build_worker("test_worker".to_string());
+        
+        // Launch a job
+        let input = AgentLoopInput {};
+        let _job = session.run_task__agent_loop(worker.clone(), input)
+            .expect("Failed to launch agent loop");
+        
+        // Should have active jobs
+        assert!(session.has_active_jobs());
+    }
+
+    #[tokio::test]
+    async fn test_has_active_jobs_after_completion() {
+        let session = create_test_session();
+        let worker = session.build_worker("test_worker".to_string());
+        let mut receiver = session.event_bus().subscribe();
+        
+        // Launch a job
+        let input = AgentLoopInput {};
+        let _job = session.run_task__agent_loop(worker.clone(), input)
+            .expect("Failed to launch agent loop");
+        
+        // Wait for job to complete
+        let timeout = tokio::time::sleep(Duration::from_secs(5));
+        tokio::pin!(timeout);
+        
+        loop {
+            tokio::select! {
+                result = receiver.recv() => {
+                    match result {
+                        Ok(AgentEnvironmentEvent::Job(JobEvent::Completed { .. })) => {
+                            break;
+                        }
+                        Ok(_) => {} // Ignore other events
+                        Err(e) => panic!("Error receiving event: {}", e),
+                    }
+                }
+                _ = &mut timeout => {
+                    panic!("Timeout waiting for job completion");
+                }
+            }
+        }
+        
+        // After completion, should have no active jobs
+        assert!(!session.has_active_jobs());
     }
 }

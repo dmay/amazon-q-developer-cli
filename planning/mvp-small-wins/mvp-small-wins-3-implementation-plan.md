@@ -251,11 +251,11 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 9.1 Unit Tests for Task 1.1
 
-- [ ] **Test UserInteractionRequired enum** (Design Doc §5)
+- [x] **Test UserInteractionRequired enum** (Design Doc §5)
   - Test enum variants can be constructed
   - Test PartialEq implementation
 
-- [ ] **Test Session::has_active_jobs()** (Design Doc §5)
+- [x] **Test Session::has_active_jobs()** (Design Doc §5)
   - Test returns false when no jobs exist
   - Test returns false when jobs exist but all inactive
   - Test returns true when at least one job is active
@@ -312,22 +312,22 @@ This plan provides step-by-step implementation tasks for two foundational improv
 
 ### 9.4 Unit Tests for Task 1.6
 
-- [ ] **Test WorkerEvent::Created handler** (Design Doc §5)
+- [x] **Test WorkerEvent::Created handler** (Design Doc §5)
   - Create StructuredIO with test writer
   - Send WorkerEvent::Created
   - Verify JSON output contains event="worker_created", worker_id, name
 
-- [ ] **Test WorkerEvent::Deleted handler** (Design Doc §5)
+- [x] **Test WorkerEvent::Deleted handler** (Design Doc §5)
   - Create StructuredIO with test writer
   - Send WorkerEvent::Deleted
   - Verify JSON output contains event="worker_deleted", worker_id
 
-- [ ] **Test JobEvent::Started handler** (Design Doc §5)
+- [x] **Test JobEvent::Started handler** (Design Doc §5)
   - Create StructuredIO with test writer
   - Send JobEvent::Started
   - Verify JSON output contains event="job_started", worker_id, job_id, task_type
 
-- [ ] **Test JobEvent::Completed handler** (Design Doc §5)
+- [x] **Test JobEvent::Completed handler** (Design Doc §5)
   - Create StructuredIO with test writer
   - Send JobEvent::Completed with each result type
   - Verify JSON output contains event="job_completed", result field

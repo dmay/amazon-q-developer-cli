@@ -443,4 +443,116 @@ mod tests {
         // Test passes - we verified first call works
         // Second call would panic but we can't easily test that
     }
+
+    #[tokio::test]
+    async fn test_worker_created_event_handler() {
+        use crate::agent_env::events::WorkerEvent;
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let worker_id = Uuid::new_v4();
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Created {
+            worker_id,
+            name: "test_worker".to_string(),
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
+
+    #[tokio::test]
+    async fn test_worker_deleted_event_handler() {
+        use crate::agent_env::events::WorkerEvent;
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let worker_id = Uuid::new_v4();
+        let event = AgentEnvironmentEvent::Worker(WorkerEvent::Deleted {
+            worker_id,
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
+
+    #[tokio::test]
+    async fn test_job_started_event_handler() {
+        use crate::agent_env::events::JobEvent;
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let event = AgentEnvironmentEvent::Job(JobEvent::Started {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            task_type: "AgentLoop".to_string(),
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
+
+    #[tokio::test]
+    async fn test_job_completed_event_handler_success() {
+        use crate::agent_env::events::{JobEvent, JobCompletionResult, UserInteractionRequired};
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let event = AgentEnvironmentEvent::Job(JobEvent::Completed {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            result: JobCompletionResult::Success {
+                task_metadata: std::collections::HashMap::new(),
+                user_interaction_required: UserInteractionRequired::None,
+            },
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
+
+    #[tokio::test]
+    async fn test_job_completed_event_handler_failed() {
+        use crate::agent_env::events::{JobEvent, JobCompletionResult};
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let event = AgentEnvironmentEvent::Job(JobEvent::Completed {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            result: JobCompletionResult::Failed {
+                error: "test error".to_string(),
+            },
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
+
+    #[tokio::test]
+    async fn test_job_completed_event_handler_cancelled() {
+        use crate::agent_env::events::{JobEvent, JobCompletionResult};
+        
+        let session = create_test_session();
+        let structured_io = StructuredIO::new(session.clone(), true).unwrap();
+        
+        let event = AgentEnvironmentEvent::Job(JobEvent::Completed {
+            worker_id: Uuid::new_v4(),
+            job_id: Uuid::new_v4(),
+            result: JobCompletionResult::Cancelled,
+            timestamp: std::time::Instant::now(),
+        });
+        
+        // Should output JSON without error
+        structured_io.handle_event(event).await;
+    }
 }

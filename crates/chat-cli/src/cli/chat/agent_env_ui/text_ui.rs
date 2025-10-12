@@ -266,7 +266,7 @@ mod tests {
         let worker1 = session.build_worker("worker1".to_string());
         let worker2 = session.build_worker("worker2".to_string());
         
-        let text_ui = TextUi::new(session.clone(), worker1.id, None).unwrap();
+        let text_ui = TextUi::new(session.clone(), worker1.id, None, true).unwrap();
         
         // Event for worker1 should be processed (main_worker_id)
         let event1 = AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged {
@@ -294,7 +294,7 @@ mod tests {
         let session = create_test_session();
         let worker = session.build_worker("test".to_string());
         
-        let text_ui = TextUi::new(session.clone(), worker.id, None).unwrap();
+        let text_ui = TextUi::new(session.clone(), worker.id, None, true).unwrap();
         
         // Test assistant response chunk
         let event = AgentEnvironmentEvent::Job(crate::agent_env::JobEvent::OutputChunk {
@@ -325,7 +325,7 @@ mod tests {
         let session = create_test_session();
         let worker = session.build_worker("test".to_string());
         
-        let text_ui = TextUi::new(session.clone(), worker.id, None).unwrap();
+        let text_ui = TextUi::new(session.clone(), worker.id, None, true).unwrap();
         
         // Test transition to Busy (should not signal prompt)
         let event = AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged {
@@ -360,7 +360,7 @@ mod tests {
         let session = create_test_session();
         let worker = session.build_worker("test".to_string());
         
-        let text_ui = TextUi::new(session.clone(), worker.id, None).unwrap();
+        let text_ui = TextUi::new(session.clone(), worker.id, None, true).unwrap();
         
         // First call should succeed
         let _receiver = text_ui.command_receiver();

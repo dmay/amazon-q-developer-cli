@@ -898,5 +898,6 @@ Read the following files - the task context:
 **IMPORTANT** Refer to "## Test process" in the same section when you need to do `cargo test`
 **IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
 And use command templates exactly as provided, no modifications!
+**IMPORTANT** You can't skip unit tests implementation, it is a required part of the work! However, The scope of "Unit Tests" section can be already covered by the tests implemented im previous sections. In such case just mark it as complete.
 
 ----

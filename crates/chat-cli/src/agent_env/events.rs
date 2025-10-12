@@ -292,4 +292,20 @@ mod tests {
         });
         assert_eq!(event.timestamp(), timestamp);
     }
+
+    #[test]
+    fn test_user_interaction_required_enum() {
+        // Test enum variants can be constructed
+        let none = UserInteractionRequired::None;
+        let tool_approval = UserInteractionRequired::ToolApproval;
+
+        // Test PartialEq implementation
+        assert_eq!(none, UserInteractionRequired::None);
+        assert_eq!(tool_approval, UserInteractionRequired::ToolApproval);
+        assert_ne!(none, tool_approval);
+
+        // Test Copy trait
+        let none_copy = none;
+        assert_eq!(none, none_copy);
+    }
 }
