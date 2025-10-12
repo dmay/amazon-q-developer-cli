@@ -740,6 +740,7 @@ Proceed with the next analysys.
 ----
 
 # MVP - Iteration: Design
+
 Look at the following files for a reference:
 - codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
 - codebase/chat-cli/files-index.md - the list of some important files we are working with 
@@ -771,7 +772,7 @@ Process hints:
 
 Proceed with the next design.
 
-## Steering - Small Wins
+### Steering - Small Wins
 
 - Task 1.1: --no-interactive
     - JobCompletionResult.waiting_for_input is not a good name. Let's make it a enum 'InteractionRequested{None, ToolApproval}' and call this field appropriately
@@ -793,7 +794,7 @@ Proceed with the next design.
         - Also look at how TextUi handles `shutdown_signal: Arc<Notify>` - can we use similar approach? Maybe similar code based on `InputHandler`?
         - Look at planning/mvp-small-wins/chatgpt-newline-recomendations.md - maybe it would provide some useful ideas?
 
-## Steering - Small wins
+### Steering - Small wins
 - Task 1.1: --no-interactive
     - `Session.has_active_jobs` - does Session actually clean the jobs on completion? I believe they remain in the Vec untill a dedicated cleanup method is called? Double-check in the code.
     

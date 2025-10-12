@@ -2,7 +2,7 @@
 
 ## Workflow Checklist
 
-### 1. mvp-small-wins
+### 1. ✅ mvp-small-wins
 - [x] Analyzed
 - [x] Designed
 - [x] Planned
@@ -21,7 +21,7 @@
 
 ---
 
-### 2. mvp-codewhisperer
+### 2. ✅ mvp-codewhisperer
 - [x] Analyzed
 - [x] Designed
 - [x] Planned
@@ -42,8 +42,9 @@
 ---
 
 ### 3. mvp-agent-and-context
+- [ ] Re-scope, include Codewhisperer Model Provider, include WorkerBuilder concept
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Task 1.2: History accumulation
@@ -59,6 +60,7 @@
 ---
 
 ### 4. mvp-tools-basic ⚠️ CRITICAL PATH
+- [ ] Re-scope, include Codewhisperer Model Provider, include tool configs from the agent config, include approval layer
 - [x] Analyzed
 - [ ] Designed
 - [ ] Planned
