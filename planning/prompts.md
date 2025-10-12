@@ -869,7 +869,7 @@ Read the following files - the task context:
 
 ----
 
-# MVP - Iteration: Planning
+# MVP - Iteration: Implementation
 
 Look at the following files for a reference:
 - codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
