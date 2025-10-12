@@ -209,6 +209,21 @@ pub enum UiMode {
     None,
 }
 
+/// Platform selection for LLM provider
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Platform {
+    #[value(name = "bedrock")]
+    Bedrock,
+    #[value(name = "codewhisperer")]
+    CodeWhisperer,
+}
+
+impl Default for Platform {
+    fn default() -> Self {
+        Platform::CodeWhisperer
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Args)]
 pub struct ChatArgs {
     /// Resumes the previous conversation from this directory.
@@ -238,18 +253,17 @@ pub struct ChatArgs {
     /// UI mode to use (text, structured, or none)
     #[arg(long = "ui-mode", value_enum)]
     pub ui_mode: Option<UiMode>,
+    /// Platform to use for LLM
+    #[arg(long = "platform", value_enum)]
+    pub platform: Option<Platform>,
 }
 
 impl ChatArgs {
     pub async fn execute(self, os: &mut Os) -> Result<ExitCode> {
         use crate::agent_env::{
             EventBus, Session, AgentEnvironment,
-            model_providers::BedrockConverseStreamModelProvider,
         };
         use crate::cli::chat::agent_env_ui::{TextUi, StructuredIO};
-        use aws_config::BehaviorVersion;
-        use aws_sdk_bedrockruntime::Client as BedrockClient;
-        use aws_types::region::Region;
         
         // Invert no_interactive flag for clearer logic
         let interactive = !self.no_interactive;
@@ -258,14 +272,8 @@ impl ChatArgs {
         let event_bus = EventBus::default();
         
         // Task 8.1.2: Create Session with EventBus and model providers
-        let config = aws_config::defaults(BehaviorVersion::latest())
-            .region(Region::new("us-east-1"))
-            .load()
-            .await;
-        
-        let bedrock_client = BedrockClient::new(&config);
-        let model_provider: Arc<dyn crate::agent_env::ModelProvider> = 
-            Arc::new(BedrockConverseStreamModelProvider::new(bedrock_client));
+        let platform = self.platform.unwrap_or_default();
+        let model_provider = Self::create_model_provider(platform, os).await?;
         let model_providers = vec![model_provider];
         
         let session = Arc::new(Session::new(event_bus.clone(), model_providers));
@@ -358,6 +366,46 @@ impl ChatArgs {
         tracing::info!("AgentEnvironment main loop exited, returning from execute()");
         
         Ok(ExitCode::SUCCESS)
+    }
+    
+    async fn create_model_provider(
+        platform: Platform,
+        os: &mut Os,
+    ) -> Result<Arc<dyn crate::agent_env::ModelProvider>> {
+        use crate::agent_env::model_providers::{BedrockConverseStreamModelProvider, CodeWhispererModelProvider};
+        use crate::api_client::ApiClient;
+        use aws_config::BehaviorVersion;
+        use aws_sdk_bedrockruntime::Client as BedrockClient;
+        use aws_types::region::Region;
+        use eyre::Context;
+        
+        match platform {
+            Platform::Bedrock => {
+                let config = aws_config::defaults(BehaviorVersion::latest())
+                    .region(Region::new("us-east-1"))
+                    .load()
+                    .await;
+                let bedrock_client = BedrockClient::new(&config);
+                Ok(Arc::new(BedrockConverseStreamModelProvider::new(bedrock_client)))
+            }
+            Platform::CodeWhisperer => {
+                let api_client = ApiClient::new(
+                    &os.env,
+                    &os.fs,
+                    &mut os.database,
+                    None,  // Use configured endpoint from database
+                ).await
+                    .context("Failed to create CodeWhisperer API client")?;
+                
+                let streaming_client = api_client.streaming_client()
+                    .ok_or_else(|| eyre::eyre!(
+                        "CodeWhisperer streaming client not available. \
+                         Please run 'q login' or check AMAZON_Q_SIGV4 is not set."
+                    ))?;
+                
+                Ok(Arc::new(CodeWhispererModelProvider::new(streaming_client)))
+            }
+        }
     }
 }
 

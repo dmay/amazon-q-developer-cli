@@ -3,6 +3,7 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Clone)]
 pub struct ModelRequest {
     pub prompt: String,
+    pub conversation_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

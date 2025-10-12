@@ -384,6 +384,7 @@ mod test {
                 no_interactive: false,
                 wrap: None,
                 ui_mode: None,
+                platform: None,
             })),
             verbose: 2,
             help_all: false,
@@ -425,6 +426,7 @@ mod test {
                 no_interactive: false,
                 wrap: None,
                 ui_mode: None,
+                platform: None,
             })
         );
     }
@@ -442,6 +444,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -460,6 +463,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -478,6 +482,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: true,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -492,6 +497,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: true,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -510,6 +516,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -528,6 +535,7 @@ mod test {
                 trust_tools: Some(vec!["".to_string()]),
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -546,6 +554,7 @@ mod test {
                 trust_tools: Some(vec!["fs_read".to_string(), "fs_write".to_string()]),
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: None,
             })
         );
@@ -564,6 +573,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: Some(Never),
             })
         );
@@ -578,6 +588,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: Some(Always),
             })
         );
@@ -592,6 +603,7 @@ mod test {
                 trust_tools: None,
                 no_interactive: false,
                 ui_mode: None,
+                platform: None,
                 wrap: Some(Auto),
             })
         );

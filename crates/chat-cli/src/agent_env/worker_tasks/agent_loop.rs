@@ -66,7 +66,12 @@ impl AgentLoop {
             }
         };  // Lock dropped here
 
-        let request = ModelRequest { prompt };
+        // TODO: Extract conversation_id from ContextContainer when implemented
+        // For MVP, use None and let CodeWhisperer provider generate fallback UUID
+        let request = ModelRequest { 
+            prompt,
+            conversation_id: None,
+        };
 
         self.worker.set_state(WorkerStates::Requesting);
         
