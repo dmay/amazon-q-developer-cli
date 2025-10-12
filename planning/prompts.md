@@ -703,7 +703,7 @@ Note that some workflows will need more scope/requirements clarification. For ex
 
 ----
 
-# ✅ MVP - Iteration: Analysys
+# MVP - Iteration: Analysys
 
 Look at the following files for a reference:
 - codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
@@ -724,7 +724,7 @@ Your goal is to proceed with analysys and research for the next workflow that no
     - DO NOT make any other changes to this file, all extra information must go to the research document
 
 Research and analysys process:
-- Identify elemets of the system that are related to the selected workflow
+- Identify existing elemets of the system that are related to the selected workflow
 - Look through the documentation and the code for those elements
 - Summarize your findings in the research document for the selected workflow (use the path from the primary plan sheet)
     - Note: you don't need to _solve_ the problem defined in the workflow, you are gathering information for the actual design process
@@ -734,6 +734,12 @@ Research and analysys process:
     - Identify the most important elements of the code for the goal of the workflow
     - The document should provide a solid foundation for the following tech design stage.
         - Consider that on tech design we can identify and compare several approaches to reach the goal
+
+**Process hints:**
+- The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to plan, and work through it. Use file '<research_file_name>-progress.md' as work status tracker.
+- For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
+- The final document most likely will be too big to write all at once. Create a to-do list with the sections of the document, then create each section separatly and append to the same file.
+
 
 Proceed with the next analysys.
 
