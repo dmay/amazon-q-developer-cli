@@ -21,7 +21,7 @@
 
 ### 2. mvp-codewhisperer
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Phase 1: Research CodeWhisperer API
