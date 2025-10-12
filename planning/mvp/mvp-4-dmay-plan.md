@@ -42,16 +42,16 @@
 ---
 
 ### 3. mvp-agent-and-context
-- [ ] Re-scope, include Codewhisperer Model Provider, include WorkerBuilder concept
-- [x] Analyzed
-- [x] Designed
+- [x] Re-scope, include Codewhisperer Model Provider, include WorkerBuilder concept
+- [ ] Analyzed
+- [ ] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Task 1.2: History accumulation
   - [ ] Task 1.4: Agent context loading
 
 **Files:**
-- Scope: `planning/mvp-agent-and-context/mvp-agent-and-context-0-scope.md`
+- Scope: `planning/mvp-agent-and-context/mvp-agent-and-context-0-scope-v2.md` (note -v2 in the name!)
 - Research: `planning/mvp-agent-and-context/mvp-agent-and-context-1-research.md` (if needed)
 - Design: `planning/mvp-agent-and-context/mvp-agent-and-context-2-design.md` (if needed)
 - Plan: `planning/mvp-agent-and-context/mvp-agent-and-context-3-implementation-plan.md`

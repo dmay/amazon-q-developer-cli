@@ -902,3 +902,31 @@ And use command templates exactly as provided, no modifications!
 **IMPORTANT** You can't skip unit tests implementation, it is a required part of the work! However, The scope of "Unit Tests" section can be already covered by the tests implemented im previous sections. In such case just mark it as complete.
 
 ----
+
+# MVP - Agent and Context - re-scoping
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+**Your goal** is to proceed with the re-scoping for the next available workflow that has re-scope task:
+- Identify workflow to work on
+- Read its scope document
+- Look for the feedback and corrections sections and inline coments
+- Rewrite the scope document from ground up
+- This file must contain as much information about the scope of this task as reasonably possible. This information will be used to do research, expand to specific technical design, and later to implementation plan for the workflow.
+
+**IMPORTANT** You must pay special attention to feedback included in the doc. The original scope was resonable in terms of what problem we want to solve for the user, but the actual structure of the aplication has changed since the doc was written.
+
+**Process hints:**
+- The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to work on, and work through it. Use file '<scope_file_name>-progress.md' as work status tracker.
+- For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
+- The final document most likely will be too big to write all at once. Create a to-do list with the sections of the document, then create each section separatly and append to the same file.
+
+----

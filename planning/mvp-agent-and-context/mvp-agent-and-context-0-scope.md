@@ -1,8 +1,22 @@
 # MVP Agent and Context - Scope
 
+## Corrections provided by the team's senior SDE - pay attention, update this scope doc
+
+- There is existing Agent configuration model crates/chat-cli/src/cli/agent/mod.rs that MUST be reused
+- There is existing code infrastructure that can identify available Agent Configs and obtain one by name, or provide default value. It MUST be reused.
+- Entry point code must delegate building a default worker to new WorkerBuilder class, that would take some of the ChatArgs (agent, platform, model, input) and build a worker. Main focus will be on building ContextContainer and its content
+    - in the following iterations we will also pass 'resume' to load ConversationHistory from the database, and 'trust_tools' to setul tools provider layer (no trust_all_tools, this one is a mistake)
+- History accumulation AND context collection must work properly on AgentLoopTask level, and sent to ModelProvides through updated ModelRequest structure.
+- AgetLoopTask must delegate that to new class ContextBuilder, that takes ContextContainer and produces ModelRequest
+- BOTH existing ModelProviders must be able to handle updated ModelRequest properly - Bedrock and Codewhisperer
+
+----
+
+
 ## Overview
 
 This workflow covers context management and agent configuration integration. It includes accumulating conversation history for multi-turn interactions and loading agent-specific context from configuration files.
+
 
 ## Tasks Included
 
