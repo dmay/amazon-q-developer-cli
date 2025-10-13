@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use super::context_container::ContextContainer;
 use super::model_providers::ModelProvider;
 use super::events::WorkerLifecycleState;
+use crate::os::Os;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum WorkerStates {
@@ -37,6 +38,9 @@ pub struct Worker {
     #[serde(skip, default)]
     pub model_provider: Option<Arc<dyn ModelProvider>>,
     
+    #[serde(skip, default = "default_os")]
+    pub os: Arc<Mutex<Option<Arc<Os>>>>,
+    
     /// Legacy state tracking (to be removed)
     #[serde(skip, default = "default_worker_state")]
     pub state: Arc<Mutex<WorkerStates>>,
@@ -56,6 +60,10 @@ fn default_worker_state() -> Arc<Mutex<WorkerStates>> {
     Arc::new(Mutex::new(WorkerStates::Inactive))
 }
 
+fn default_os() -> Arc<Mutex<Option<Arc<Os>>>> {
+    Arc::new(Mutex::new(None))
+}
+
 impl Worker {
     pub fn new(name: String, model_provider: Arc<dyn ModelProvider>) -> Self {
         Self {
@@ -65,9 +73,18 @@ impl Worker {
             lifecycle_state: Arc::new(Mutex::new(WorkerLifecycleState::Idle)),
             task_metadata: Arc::new(Mutex::new(HashMap::new())),
             model_provider: Some(model_provider),
+            os: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(WorkerStates::Inactive)),
             last_failure: Arc::new(Mutex::new(None)),
         }
+    }
+    
+    pub fn set_os(&self, os: Arc<Os>) {
+        *self.os.lock().unwrap() = Some(os);
+    }
+    
+    pub fn get_os(&self) -> Option<Arc<Os>> {
+        self.os.lock().unwrap().clone()
     }
 
     pub fn set_state(&self, new_state: WorkerStates) {

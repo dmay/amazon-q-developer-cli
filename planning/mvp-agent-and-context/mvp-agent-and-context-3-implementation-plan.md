@@ -12,64 +12,64 @@ This implementation plan provides a step-by-step checklist for implementing agen
 
 This phase updates foundational data structures to support agent context and multi-turn conversations.
 
-- [ ] **Task 1.1: Update ContextContainer structure** (Design Doc §1)
-  - [ ] Add `agent_prompt: Arc<Mutex<Option<String>>>` field to ContextContainer struct
-  - [ ] Add `agent_resources: Arc<Mutex<Option<String>>>` field to ContextContainer struct
-  - [ ] Add `#[serde(skip, default = "default_agent_prompt")]` attribute to agent_prompt
-  - [ ] Add `#[serde(skip, default = "default_agent_resources")]` attribute to agent_resources
-  - [ ] Implement `default_agent_prompt()` function returning `Arc::new(Mutex::new(None))`
-  - [ ] Implement `default_agent_resources()` function returning `Arc::new(Mutex::new(None))`
+- [x] **Task 1.1: Update ContextContainer structure** (Design Doc §1)
+  - [x] Add `agent_prompt: Arc<Mutex<Option<String>>>` field to ContextContainer struct
+  - [x] Add `agent_resources: Arc<Mutex<Option<String>>>` field to ContextContainer struct
+  - [x] Add `#[serde(skip, default = "default_agent_prompt")]` attribute to agent_prompt
+  - [x] Add `#[serde(skip, default = "default_agent_resources")]` attribute to agent_resources
+  - [x] Implement `default_agent_prompt()` function returning `Arc::new(Mutex::new(None))`
+  - [x] Implement `default_agent_resources()` function returning `Arc::new(Mutex::new(None))`
 
-- [ ] **Task 1.2: Add ContextContainer methods** (Design Doc §1)
-  - [ ] Implement `set_agent_prompt(&self, prompt: String)` method
-  - [ ] Implement `get_agent_prompt(&self) -> Option<String>` method
-  - [ ] Implement `set_agent_resources(&self, resources: String)` method
-  - [ ] Implement `get_agent_resources(&self) -> Option<String>` method
-  - [ ] Update `new()` constructor to initialize new fields
+- [x] **Task 1.2: Add ContextContainer methods** (Design Doc §1)
+  - [x] Implement `set_agent_prompt(&self, prompt: String)` method
+  - [x] Implement `get_agent_prompt(&self) -> Option<String>` method
+  - [x] Implement `set_agent_resources(&self, resources: String)` method
+  - [x] Implement `get_agent_resources(&self) -> Option<String>` method
+  - [x] Update `new()` constructor to initialize new fields
 
-- [ ] **Task 1.3: Define enhanced ModelRequest structure** (Design Doc §2)
-  - [ ] Create `ConversationMessage` struct with `role: MessageRole` and `content: String` fields
-  - [ ] Create `MessageRole` enum with `User` and `Assistant` variants
-  - [ ] Add `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` to MessageRole
-  - [ ] Update `ModelRequest` struct to replace `prompt: String` with `messages: Vec<ConversationMessage>`
-  - [ ] Add `system_prompt: Option<String>` field to ModelRequest
-  - [ ] Add `context: Option<String>` field to ModelRequest
-  - [ ] Keep existing `conversation_id: Option<String>` field
+- [x] **Task 1.3: Define enhanced ModelRequest structure** (Design Doc §2)
+  - [x] Create `ConversationMessage` struct with `role: MessageRole` and `content: String` fields
+  - [x] Create `MessageRole` enum with `User` and `Assistant` variants
+  - [x] Add `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` to MessageRole
+  - [x] Update `ModelRequest` struct to replace `prompt: String` with `messages: Vec<ConversationMessage>`
+  - [x] Add `system_prompt: Option<String>` field to ModelRequest
+  - [x] Add `context: Option<String>` field to ModelRequest
+  - [x] Keep existing `conversation_id: Option<String>` field
 
-- [ ] **Task 1.4: Verify ConversationHistory methods** (Design Doc §1)
-  - [ ] Confirm `push_input_message(String)` method exists
-  - [ ] Confirm `push_assistant_message(AssistantMessage)` method exists
-  - [ ] Confirm `get_entries() -> &[ConversationEntry]` method exists
-  - [ ] Add any missing methods if needed
+- [x] **Task 1.4: Verify ConversationHistory methods** (Design Doc §1)
+  - [x] Confirm `push_input_message(String)` method exists
+  - [x] Confirm `push_assistant_message(AssistantMessage)` method exists
+  - [x] Confirm `get_entries() -> &[ConversationEntry]` method exists
+  - [x] Add any missing methods if needed
 
 ### Phase 2: ContextBuilder
 
 This phase creates the ContextBuilder component that converts ContextContainer to ModelRequest.
 
-- [ ] **Task 2.1: Create ContextBuilder file and structure** (Design Doc §3)
-  - [ ] Create new file `crates/chat-cli/src/agent_env/context_builder.rs`
-  - [ ] Add necessary imports: `ContextContainer`, `ModelRequest`, `ConversationMessage`, `MessageRole`, `AssistantMessage`
-  - [ ] Define `pub struct ContextBuilder;` (stateless, no fields)
+- [x] **Task 2.1: Create ContextBuilder file and structure** (Design Doc §3)
+  - [x] Create new file `crates/chat-cli/src/agent_env/context_builder.rs`
+  - [x] Add necessary imports: `ContextContainer`, `ModelRequest`, `ConversationMessage`, `MessageRole`, `AssistantMessage`
+  - [x] Define `pub struct ContextBuilder;` (stateless, no fields)
 
-- [ ] **Task 2.2: Implement build_request method** (Design Doc §3)
-  - [ ] Create `pub fn build_request(context_container: &ContextContainer) -> Result<ModelRequest>`
-  - [ ] Call `Self::build_messages(context_container)?` to get messages array
-  - [ ] Call `context_container.get_agent_prompt()` to get system_prompt
-  - [ ] Call `context_container.get_agent_resources()` to get context
-  - [ ] Construct and return `ModelRequest` with all fields (conversation_id set to None)
+- [x] **Task 2.2: Implement build_request method** (Design Doc §3)
+  - [x] Create `pub fn build_request(context_container: &ContextContainer) -> Result<ModelRequest>`
+  - [x] Call `Self::build_messages(context_container)?` to get messages array
+  - [x] Call `context_container.get_agent_prompt()` to get system_prompt
+  - [x] Call `context_container.get_agent_resources()` to get context
+  - [x] Construct and return `ModelRequest` with all fields (conversation_id set to None)
 
-- [ ] **Task 2.3: Implement build_messages helper** (Design Doc §3)
-  - [ ] Create `fn build_messages(context_container: &ContextContainer) -> Result<Vec<ConversationMessage>>`
-  - [ ] Lock conversation_history and get entries
-  - [ ] Return error if entries is empty: `Err(eyre::eyre!("No messages in conversation history"))`
-  - [ ] Iterate through entries and extract user messages with `MessageRole::User`
-  - [ ] Iterate through entries and extract assistant messages with `MessageRole::Assistant`
-  - [ ] Handle both `AssistantMessage::Response` and `AssistantMessage::ToolUse` variants
-  - [ ] Return messages vector maintaining conversation order
+- [x] **Task 2.3: Implement build_messages helper** (Design Doc §3)
+  - [x] Create `fn build_messages(context_container: &ContextContainer) -> Result<Vec<ConversationMessage>>`
+  - [x] Lock conversation_history and get entries
+  - [x] Return error if entries is empty: `Err(eyre::eyre!("No messages in conversation history"))`
+  - [x] Iterate through entries and extract user messages with `MessageRole::User`
+  - [x] Iterate through entries and extract assistant messages with `MessageRole::Assistant`
+  - [x] Handle both `AssistantMessage::Response` and `AssistantMessage::ToolUse` variants
+  - [x] Return messages vector maintaining conversation order
 
-- [ ] **Task 2.4: Add module exports** (Design Doc §3)
-  - [ ] Add `mod context_builder;` to `crates/chat-cli/src/agent_env/mod.rs`
-  - [ ] Add `pub use context_builder::ContextBuilder;` to `crates/chat-cli/src/agent_env/mod.rs`
+- [x] **Task 2.4: Add module exports** (Design Doc §3)
+  - [x] Add `mod context_builder;` to `crates/chat-cli/src/agent_env/mod.rs`
+  - [x] Add `pub use context_builder::ContextBuilder;` to `crates/chat-cli/src/agent_env/mod.rs`
 
 - [ ] **Task 2.5: Write ContextBuilder unit tests** (Design Doc §Testing Strategy)
   - [ ] Test `build_request` with full context (history + prompt + resources)
@@ -82,47 +82,47 @@ This phase creates the ContextBuilder component that converts ContextContainer t
 
 This phase creates the WorkerBuilder component that encapsulates worker creation with agent configuration.
 
-- [ ] **Task 3.1: Create WorkerBuilder file and structure** (Design Doc §4)
-  - [ ] Create new file `crates/chat-cli/src/agent_env/worker_builder.rs`
-  - [ ] Add necessary imports: `Session`, `Worker`, `Agent`, `Platform`, `Os`, `Arc`, `Result`
-  - [ ] Define `pub struct WorkerBuilder` with fields: `agent_name: Option<String>`, `platform: Platform`, `model: Option<String>`, `initial_input: Option<String>`
+- [x] **Task 3.1: Create WorkerBuilder file and structure** (Design Doc §4)
+  - [x] Create new file `crates/chat-cli/src/agent_env/worker_builder.rs`
+  - [x] Add necessary imports: `Session`, `Worker`, `Agent`, `Platform`, `Os`, `Arc`, `Result`
+  - [x] Define `pub struct WorkerBuilder` with fields: `agent_name: Option<String>`, `platform: Platform`, `model: Option<String>`, `initial_input: Option<String>`
 
-- [ ] **Task 3.2: Implement WorkerBuilder constructor and setters** (Design Doc §4)
-  - [ ] Implement `pub fn new() -> Self` returning WorkerBuilder with default values
-  - [ ] Implement `pub fn agent(mut self, agent_name: Option<String>) -> Self` setter
-  - [ ] Implement `pub fn platform(mut self, platform: Platform) -> Self` setter
-  - [ ] Implement `pub fn model(mut self, model: Option<String>) -> Self` setter
-  - [ ] Implement `pub fn initial_input(mut self, input: Option<String>) -> Self` setter
+- [x] **Task 3.2: Implement WorkerBuilder constructor and setters** (Design Doc §4)
+  - [x] Implement `pub fn new() -> Self` returning WorkerBuilder with default values
+  - [x] Implement `pub fn agent(mut self, agent_name: Option<String>) -> Self` setter
+  - [x] Implement `pub fn platform(mut self, platform: Platform) -> Self` setter
+  - [x] Implement `pub fn model(mut self, model: Option<String>) -> Self` setter
+  - [x] Implement `pub fn initial_input(mut self, input: Option<String>) -> Self` setter
 
-- [ ] **Task 3.3: Implement agent loading in build method** (Design Doc §4)
-  - [ ] Create `pub async fn build(self, session: Arc<Session>, os: &Os) -> Result<Arc<Worker>>`
-  - [ ] Load agent config: if `agent_name` is Some, call `Agent::get_agent_by_name(os, agent_name).await?`
-  - [ ] If `agent_name` is None, use `Agent::default()`
-  - [ ] Store loaded agent for use in subsequent steps
+- [x] **Task 3.3: Implement agent loading in build method** (Design Doc §4)
+  - [x] Create `pub async fn build(self, session: Arc<Session>, os: &Os) -> Result<Arc<Worker>>`
+  - [x] Load agent config: if `agent_name` is Some, call `Agent::get_agent_by_name(os, agent_name).await?`
+  - [x] If `agent_name` is None, use `Agent::default()`
+  - [x] Store loaded agent for use in subsequent steps
 
-- [ ] **Task 3.4: Implement resource loading helper** (Design Doc §4)
-  - [ ] Create `async fn load_resources(resources: &[ResourcePath], os: &Os) -> Result<String>`
-  - [ ] Import `glob::glob` for pattern matching
-  - [ ] Iterate through resources, skip non-file:// URLs
-  - [ ] Strip "file://" prefix from each resource path
-  - [ ] For paths with '*', use `glob(path)?` to expand pattern
-  - [ ] For each matched file, read content with `os.fs.read_to_string(&file_path).await`
-  - [ ] Format as `\n--- {path} ---\n{content}\n` and append to result string
-  - [ ] For single files (no glob), read directly with same formatting
-  - [ ] Gracefully handle errors (missing files, permission errors) by continuing to next resource
-  - [ ] Return concatenated resources string
+- [x] **Task 3.4: Implement resource loading helper** (Design Doc §4)
+  - [x] Create `async fn load_resources(resources: &[ResourcePath], os: &Os) -> Result<String>`
+  - [x] Import `glob::glob` for pattern matching
+  - [x] Iterate through resources, skip non-file:// URLs
+  - [x] Strip "file://" prefix from each resource path
+  - [x] For paths with '*', use `glob(path)?` to expand pattern
+  - [x] For each matched file, read content with `os.fs.read_to_string(&file_path).await`
+  - [x] Format as `\n--- {path} ---\n{content}\n` and append to result string
+  - [x] For single files (no glob), read directly with same formatting
+  - [x] Gracefully handle errors (missing files, permission errors) by continuing to next resource
+  - [x] Return concatenated resources string
 
-- [ ] **Task 3.5: Complete build method implementation** (Design Doc §4)
-  - [ ] Call `Self::load_resources(&agent.resources, os).await?` to get resources_content
-  - [ ] Create worker through Session: `session.build_worker("main".to_string())`
-  - [ ] If agent.prompt is Some, call `worker.context_container.set_agent_prompt(prompt.clone())`
-  - [ ] If resources_content is not empty, call `worker.context_container.set_agent_resources(resources_content)`
-  - [ ] If initial_input is Some, add to conversation: `worker.context_container.conversation_history.lock().unwrap().push_input_message(input.clone())`
-  - [ ] Return worker wrapped in Ok
+- [x] **Task 3.5: Complete build method implementation** (Design Doc §4)
+  - [x] Call `Self::load_resources(&agent.resources, os).await?` to get resources_content
+  - [x] Create worker through Session: `session.build_worker("main".to_string())`
+  - [x] If agent.prompt is Some, call `worker.context_container.set_agent_prompt(prompt.clone())`
+  - [x] If resources_content is not empty, call `worker.context_container.set_agent_resources(resources_content)`
+  - [x] If initial_input is Some, add to conversation: `worker.context_container.conversation_history.lock().unwrap().push_input_message(input.clone())`
+  - [x] Return worker wrapped in Ok
 
-- [ ] **Task 3.6: Add module exports** (Design Doc §4)
-  - [ ] Add `mod worker_builder;` to `crates/chat-cli/src/agent_env/mod.rs`
-  - [ ] Add `pub use worker_builder::WorkerBuilder;` to `crates/chat-cli/src/agent_env/mod.rs`
+- [x] **Task 3.6: Add module exports** (Design Doc §4)
+  - [x] Add `mod worker_builder;` to `crates/chat-cli/src/agent_env/mod.rs`
+  - [x] Add `pub use worker_builder::WorkerBuilder;` to `crates/chat-cli/src/agent_env/mod.rs`
 
 - [ ] **Task 3.7: Write WorkerBuilder unit tests** (Design Doc §Testing Strategy)
   - [ ] Test `build` with default agent (no agent_name provided)
@@ -137,34 +137,34 @@ This phase creates the WorkerBuilder component that encapsulates worker creation
 
 This phase updates both ModelProvider implementations to handle the new ModelRequest structure.
 
-- [ ] **Task 4.1: Update BedrockConverseStreamModelProvider - system blocks** (Design Doc §5)
-  - [ ] In `request()` method, create `Vec<SystemContentBlock>` for system content
-  - [ ] If `request.system_prompt` is Some, push `SystemContentBlock::Text(prompt)` to system_blocks
-  - [ ] If `request.context` is Some, push `SystemContentBlock::Text(context)` to system_blocks
+- [x] **Task 4.1: Update BedrockConverseStreamModelProvider - system blocks** (Design Doc §5)
+  - [x] In `request()` method, create `Vec<SystemContentBlock>` for system content
+  - [x] If `request.system_prompt` is Some, push `SystemContentBlock::Text(prompt)` to system_blocks
+  - [x] If `request.context` is Some, push `SystemContentBlock::Text(context)` to system_blocks
 
-- [ ] **Task 4.2: Update BedrockConverseStreamModelProvider - messages conversion** (Design Doc §5)
-  - [ ] Convert `request.messages` to `Vec<Message>` using iterator and map
-  - [ ] For each message, convert `MessageRole::User` to `ConversationRole::User`
-  - [ ] For each message, convert `MessageRole::Assistant` to `ConversationRole::Assistant`
-  - [ ] Build each Message with role and `ContentBlock::Text(msg.content.clone())`
+- [x] **Task 4.2: Update BedrockConverseStreamModelProvider - messages conversion** (Design Doc §5)
+  - [x] Convert `request.messages` to `Vec<Message>` using iterator and map
+  - [x] For each message, convert `MessageRole::User` to `ConversationRole::User`
+  - [x] For each message, convert `MessageRole::Assistant` to `ConversationRole::Assistant`
+  - [x] Build each Message with role and `ContentBlock::Text(msg.content.clone())`
 
-- [ ] **Task 4.3: Update BedrockConverseStreamModelProvider - request building** (Design Doc §5)
-  - [ ] Create request builder: `self.client.converse_stream().model_id(&self.model_id)`
-  - [ ] Call `.set_messages(Some(messages))` with converted messages
-  - [ ] If system_blocks is not empty, call `.set_system(Some(system_blocks))`
-  - [ ] Verify streaming and cancellation logic remains unchanged
+- [x] **Task 4.3: Update BedrockConverseStreamModelProvider - request building** (Design Doc §5)
+  - [x] Create request builder: `self.client.converse_stream().model_id(&self.model_id)`
+  - [x] Call `.set_messages(Some(messages))` with converted messages
+  - [x] If system_blocks is not empty, call `.set_system(Some(system_blocks))`
+  - [x] Verify streaming and cancellation logic remains unchanged
 
-- [ ] **Task 4.4: Update CodeWhispererModelProvider - content concatenation** (Design Doc §6)
-  - [ ] In `request()` method, create mutable `String` for content
-  - [ ] If `request.system_prompt` is Some, append prompt + "\n\n"
-  - [ ] If `request.context` is Some, append context + "\n\n"
-  - [ ] Iterate through `request.messages` and format each as "User: {content}\n\n" or "Assistant: {content}\n\n" based on role
-  - [ ] Concatenate all formatted messages into content string
+- [x] **Task 4.4: Update CodeWhispererModelProvider - content concatenation** (Design Doc §6)
+  - [x] In `request()` method, create mutable `String` for content
+  - [x] If `request.system_prompt` is Some, append prompt + "\n\n"
+  - [x] If `request.context` is Some, append context + "\n\n"
+  - [x] Iterate through `request.messages` and format each as "User: {content}\n\n" or "Assistant: {content}\n\n" based on role
+  - [x] Concatenate all formatted messages into content string
 
-- [ ] **Task 4.5: Update CodeWhispererModelProvider - request building** (Design Doc §6)
-  - [ ] Build `UserInputMessage` with concatenated content
-  - [ ] Build `ConversationState` with UserInputMessage and conversation_id
-  - [ ] Verify streaming and event handling logic remains unchanged
+- [x] **Task 4.5: Update CodeWhispererModelProvider - request building** (Design Doc §6)
+  - [x] Build `UserInputMessage` with concatenated content
+  - [x] Build `ConversationState` with UserInputMessage and conversation_id
+  - [x] Verify streaming and event handling logic remains unchanged
 
 - [ ] **Task 4.6: Update ModelProvider tests** (Design Doc §Testing Strategy)
   - [ ] Update existing Bedrock tests to use new ModelRequest structure
@@ -177,29 +177,29 @@ This phase updates both ModelProvider implementations to handle the new ModelReq
 
 This phase integrates ContextBuilder into the AgentLoop task.
 
-- [ ] **Task 5.1: Update AgentLoop::query_llm method** (Design Doc §7)
-  - [ ] In `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs`, locate `query_llm()` method
-  - [ ] Remove existing code that extracts last message from conversation history
-  - [ ] Replace with single line: `let request = crate::agent_env::ContextBuilder::build_request(&self.worker.context_container)?;`
-  - [ ] Verify that `self.worker.set_state(WorkerStates::Requesting)` and subsequent provider call remain unchanged
-  - [ ] Verify error handling and cancellation logic remain unchanged
+- [x] **Task 5.1: Update AgentLoop::query_llm method** (Design Doc §7)
+  - [x] In `crates/chat-cli/src/agent_env/worker_tasks/agent_loop.rs`, locate `query_llm()` method
+  - [x] Remove existing code that extracts last message from conversation history
+  - [x] Replace with single line: `let request = crate::agent_env::ContextBuilder::build_request(&self.worker.context_container)?;`
+  - [x] Verify that `self.worker.set_state(WorkerStates::Requesting)` and subsequent provider call remain unchanged
+  - [x] Verify error handling and cancellation logic remain unchanged
 
-- [ ] **Task 5.2: Verify response accumulation** (Design Doc §7)
-  - [ ] Confirm that `run()` method already calls `push_assistant_message()` after receiving response
-  - [ ] Verify that both Response and ToolUse assistant messages are properly added to history
-  - [ ] No changes needed if accumulation already works correctly
+- [x] **Task 5.2: Verify response accumulation** (Design Doc §7)
+  - [x] Confirm that `run()` method already calls `push_assistant_message()` after receiving response
+  - [x] Verify that both Response and ToolUse assistant messages are properly added to history
+  - [x] No changes needed if accumulation already works correctly
 
 ### Phase 6: Entry Point Integration
 
 This phase integrates WorkerBuilder into the ChatArgs entry point.
 
-- [ ] **Task 6.1: Update ChatArgs::execute method** (Design Doc §8)
-  - [ ] In `crates/chat-cli/src/cli/chat/mod.rs`, locate worker creation code
-  - [ ] Remove existing `session.build_worker("main".to_string())` call
-  - [ ] Remove manual initial_input addition to conversation history
-  - [ ] Replace with WorkerBuilder usage:
+- [x] **Task 6.1: Update ChatArgs::execute method** (Design Doc §8)
+  - [x] In `crates/chat-cli/src/cli/chat/mod.rs`, locate worker creation code
+  - [x] Remove existing `session.build_worker("main".to_string())` call
+  - [x] Remove manual initial_input addition to conversation history
+  - [x] Replace with WorkerBuilder usage:
     ```rust
-    let main_worker = crate::agent_env::WorkerBuilder::new()
+    let main_worker = WorkerBuilder::new()
         .agent(self.agent.clone())
         .platform(platform)
         .model(self.model.clone())
@@ -207,12 +207,12 @@ This phase integrates WorkerBuilder into the ChatArgs entry point.
         .build(session.clone(), os)
         .await?;
     ```
-  - [ ] Verify that UI creation and AgentEnvironment setup remain unchanged
+  - [x] Verify that UI creation and AgentEnvironment setup remain unchanged
 
-- [ ] **Task 6.2: Verify error handling** (Design Doc §8)
-  - [ ] Confirm that agent loading errors propagate correctly with `?` operator
-  - [ ] Verify that error messages are clear for missing agent configs
-  - [ ] Test that invalid agent names produce helpful error messages
+- [x] **Task 6.2: Verify error handling** (Design Doc §8)
+  - [x] Confirm that agent loading errors propagate correctly with `?` operator
+  - [x] Verify that error messages are clear for missing agent configs
+  - [x] Test that invalid agent names produce helpful error messages
 
 ### Phase 7: Testing and Validation
 

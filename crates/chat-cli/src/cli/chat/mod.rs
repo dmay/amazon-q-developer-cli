@@ -261,7 +261,7 @@ pub struct ChatArgs {
 impl ChatArgs {
     pub async fn execute(self, os: &mut Os) -> Result<ExitCode> {
         use crate::agent_env::{
-            EventBus, Session, AgentEnvironment,
+            EventBus, Session, AgentEnvironment, WorkerBuilder,
         };
         use crate::cli::chat::agent_env_ui::{TextUi, StructuredIO};
         
@@ -291,18 +291,15 @@ impl ChatArgs {
             None
         };
         
-        // Task 8.1.3: Create main Worker
-        let main_worker = session.build_worker("main".to_string());
+        // Task 8.1.3: Create main Worker using WorkerBuilder
+        let main_worker = WorkerBuilder::new()
+            .agent(self.agent.clone())
+            .platform(platform)
+            .model(self.model.clone())
+            .initial_input(self.input.clone())
+            .build(session.clone(), os)
+            .await?;
         let main_worker_id = main_worker.id;
-        
-        // Task 8.1.4: Handle initial input if provided
-        if let Some(initial_input) = &self.input {
-            main_worker.context_container
-                .conversation_history
-                .lock()
-                .unwrap()
-                .push_input_message(initial_input.clone());
-        }
         
         // Create TextUi or None UI after worker (TextUi needs worker_id)
         let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = if let Some(structured_io) = main_ui_structured {

@@ -907,7 +907,7 @@ And use command templates exactly as provided, no modifications!
 
 ----
 
-# MVP - Agent and Context - re-scoping
+# MVP - Iteration: re-scoping
 
 Look at the following files for a reference:
 - codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
@@ -932,5 +932,37 @@ Read the following files - the task context:
 - The whole scope can be too big to take all at once. In such case create a todo list for the problems or elements to work on, and work through it. Use file '<scope_file_name>-progress.md' as work status tracker.
 - For large problems, try to break them down into smaller, and process them one by one. Use todos and same worker tracker file.
 - The final document most likely will be too big to write all at once. Create a to-do list with the sections of the document, then create each section separatly and append to the same file.
+
+----
+
+# MVP - Agent and Context - corrections
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp-agent-and-context/mvp-agent-and-context-0-scope-v2.md
+- planning/mvp-agent-and-context/mvp-agent-and-context-1-research.md
+- planning/mvp-agent-and-context/mvp-agent-and-context-2-design.md
+- planning/mvp-agent-and-context/mvp-agent-and-context-3-implementation-plan.md
+- planning/mvp-agent-and-context/mvp-agent-and-context-4-implementation-log.md
+
+Try to find the answer to the following questions:
+- Q: What's the difference between `Agent::get_agent_by_name(os, agent_name)` and `Agents::load(os, self.agent.as_deref(), skip_migration, &mut stderr, mcp_enabled)`?
+Write down the answers to planning/mvp-agent-and-context/mvp-agent-and-context-5-questions.md
+
+Make following changes:
+- [ ] WorkerBuilder must only load resources references into the ContextContainer. Actual reading of the files (now in WorkerBuilder::load_resources) must be done by ContextBuilder, in `build_messages()`
+- [ ] BedrockConverseStreamModelProvider converts received ModelRequest correctly, matching aws_sdk_bedrockruntime::Message structure. But CodeWhispererModelProvider concatenates everything into single UserInputMessage, instead of following CodeWhisperer API. Please refer to the files below and make CodeWhispererModelProvider use proper request structure
+    - codebase/aws-codewhisperer-clients.md
+    - codebase/aws-codewhisperer-calls.md
+    - codebase/aws-codewhisperer-calls-example-request.json
+    - codebase/aws-codewhisperer-calls-example-response.json
+
+Important: Update all unit tests accordingly
 
 ----

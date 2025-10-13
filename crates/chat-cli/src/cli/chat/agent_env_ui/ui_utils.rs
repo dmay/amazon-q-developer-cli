@@ -91,6 +91,7 @@ mod tests {
             task_metadata: Arc::new(Mutex::new(HashMap::new())),
             context_container: ContextContainer::new(),
             model_provider: None,
+            os: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(WorkerStates::Inactive)),
             last_failure: Arc::new(Mutex::new(None)),
         }

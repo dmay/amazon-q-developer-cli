@@ -1,4 +1,4 @@
-use aws_sdk_bedrockruntime::{Client as BedrockClient, types::{Message, ConversationRole, ContentBlock}};
+use aws_sdk_bedrockruntime::{Client as BedrockClient, types::{Message, ConversationRole, ContentBlock, SystemContentBlock}};
 use tokio_util::sync::CancellationToken;
 
 use super::model_provider::*;
@@ -27,17 +27,43 @@ impl ModelProvider for BedrockConverseStreamModelProvider {
         when_received: Box<dyn Fn(ModelResponseChunk) + Send>,
         cancellation_token: CancellationToken,
     ) -> Result<ModelResponse, eyre::Error> {
-        let message = Message::builder()
-            .role(ConversationRole::User)
-            .content(ContentBlock::Text(request.prompt))
-            .build()?;
+        // Build system content blocks
+        let mut system_blocks = Vec::new();
+        if let Some(prompt) = request.system_prompt {
+            system_blocks.push(SystemContentBlock::Text(prompt));
+        }
+        if let Some(context) = request.context {
+            system_blocks.push(SystemContentBlock::Text(context));
+        }
+
+        // Convert messages to Bedrock format
+        let messages: Vec<Message> = request.messages
+            .iter()
+            .map(|msg| {
+                let role = match msg.role {
+                    MessageRole::User => ConversationRole::User,
+                    MessageRole::Assistant => ConversationRole::Assistant,
+                };
+                Message::builder()
+                    .role(role)
+                    .content(ContentBlock::Text(msg.content.clone()))
+                    .build()
+                    .unwrap()
+            })
+            .collect();
+
+        // Build request
+        let mut request_builder = self.client
+            .converse_stream()
+            .model_id(&self.model_id)
+            .set_messages(Some(messages));
+
+        if !system_blocks.is_empty() {
+            request_builder = request_builder.set_system(Some(system_blocks));
+        }
 
         let response = tokio::select! {
-            result = self.client
-                .converse_stream()
-                .model_id(&self.model_id)
-                .messages(message)
-                .send() => {
+            result = request_builder.send() => {
                 match result {
                     Ok(r) => r,
                     Err(e) => {

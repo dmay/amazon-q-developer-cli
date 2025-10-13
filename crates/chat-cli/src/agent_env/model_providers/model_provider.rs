@@ -2,8 +2,22 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone)]
 pub struct ModelRequest {
-    pub prompt: String,
+    pub messages: Vec<ConversationMessage>,
+    pub system_prompt: Option<String>,
+    pub context: Option<String>,
     pub conversation_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConversationMessage {
+    pub role: MessageRole,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageRole {
+    User,
+    Assistant,
 }
 
 #[derive(Debug, Clone)]

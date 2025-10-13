@@ -9,7 +9,7 @@ use crate::agent_env::{
     EventBus, AgentEnvironmentEvent, JobEvent, AgentLoopEvent, OutputChunk,
 };
 use crate::agent_env::worker::task_metadata_keys;
-use crate::cli::chat::message::{AssistantMessage, UserMessageContent};
+use crate::cli::chat::message::AssistantMessage;
 
 pub struct AgentLoopInput {
     // Empty - all context comes from Worker
@@ -47,31 +47,15 @@ impl AgentLoop {
     async fn query_llm(&self) -> Result<ModelResponse, eyre::Error> {
         self.check_cancellation()?;
         
-        // Get prompt from worker's context
-        let prompt = {
-            let history = self.worker.context_container
-                .conversation_history
-                .lock()
-                .unwrap();
-            
-            let last_entry = history.get_entries().last()
-                .ok_or_else(|| eyre::eyre!("No messages in history"))?;
-            
-            match &last_entry.user {
-                Some(user_msg) => match user_msg.content() {
-                    UserMessageContent::Prompt { prompt } => prompt.clone(),
-                    _ => return Err(eyre::eyre!("Expected prompt message")),
-                },
-                None => return Err(eyre::eyre!("Last entry is not a user message")),
-            }
-        };  // Lock dropped here
-
-        // TODO: Extract conversation_id from ContextContainer when implemented
-        // For MVP, use None and let CodeWhisperer provider generate fallback UUID
-        let request = ModelRequest { 
-            prompt,
-            conversation_id: None,
-        };
+        // Get Os from worker
+        let os = self.worker.get_os()
+            .ok_or_else(|| eyre::eyre!("Os not available in worker"))?;
+        
+        // Build request using ContextBuilder
+        let request = crate::agent_env::ContextBuilder::build_request(
+            &self.worker.context_container,
+            &os
+        ).await?;
 
         self.worker.set_state(WorkerStates::Requesting);
         
@@ -291,6 +275,8 @@ mod tests {
         
         // Create worker and add initial message
         let worker = session.build_worker("test".to_string());
+        let os = crate::os::Os::new().await.unwrap();
+        worker.set_os(Arc::new(os));
         worker.context_container
             .conversation_history
             .lock()
@@ -376,6 +362,8 @@ mod tests {
         
         // Create worker and add initial message
         let worker = session.build_worker("test".to_string());
+        let os = crate::os::Os::new().await.unwrap();
+        worker.set_os(Arc::new(os));
         worker.context_container
             .conversation_history
             .lock()
@@ -455,6 +443,8 @@ mod tests {
         let session = Arc::new(Session::new(event_bus.clone(), vec![mock_provider]));
         
         let worker = session.build_worker("test".to_string());
+        let os = crate::os::Os::new().await.unwrap();
+        worker.set_os(Arc::new(os));
         worker.context_container
             .conversation_history
             .lock()
@@ -495,6 +485,8 @@ mod tests {
         let session2 = Arc::new(Session::new(event_bus2.clone(), vec![mock_provider2]));
         
         let worker2 = session2.build_worker("test2".to_string());
+        let os2 = crate::os::Os::new().await.unwrap();
+        worker2.set_os(Arc::new(os2));
         worker2.context_container
             .conversation_history
             .lock()
