@@ -700,220 +700,396 @@ impl From<ToolSpecification> for amzn_qdeveloper_streaming_client::types::ToolSp
 
 ---
 
-## 6. Bedrock API Research Needs
+## 6. Bedrock API Tool Support - Research Findings
 
-### Current Bedrock Implementation
+### Research Summary
 
-**Location:** `crates/chat-cli/src/agent_env/model_providers/bedrock_converse_stream.rs`
+✅ **Bedrock Converse API fully supports tools** via the `toolConfig` parameter. The format is similar to CodeWhisperer but with some structural differences.
 
-**Current ModelRequest:**
-```rust
-pub struct ModelRequest {
-    pub prompt: String,  // Single string only
+**Key Documentation:**
+- [Converse API tool use examples](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use-examples.html)
+- [ConverseStream API Reference](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html)
+- [ToolSpecification API Reference](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolSpecification.html)
+
+### Tool Configuration Format
+
+**Request Structure:**
+
+```python
+# From AWS documentation example
+tool_config = {
+    "tools": [
+        {
+            "toolSpec": {
+                "name": "top_song",
+                "description": "Get the most popular song played on a radio station.",
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "sign": {
+                                "type": "string",
+                                "description": "The call sign for the radio station..."
+                            }
+                        },
+                        "required": ["sign"]
+                    }
+                }
+            }
+        }
+    ]
 }
+
+response = bedrock_client.converse_stream(
+    modelId=model_id,
+    messages=messages,
+    toolConfig=tool_config  # ✅ Tools sent via toolConfig parameter
+)
 ```
 
-**Current Implementation:**
+**Rust SDK Equivalent:**
+
 ```rust
-let message = Message::builder()
-    .role(ConversationRole::User)
-    .content(ContentBlock::Text(request.prompt))
-    .build()?;
-
-let response = self.client
-    .converse_stream()
-    .model_id(&self.model_id)
-    .messages(message)
-    .send()
-```
-
-**Observations:**
-- ❌ No tool support in current implementation
-- ❌ Only sends single text message
-- ❌ No tool specifications in request
-- ❌ No tool use detection in response
-- ⚠️ Uses `converse_stream()` API (not `chat()` like CodeWhisperer)
-
-### Critical Research Questions
-
-#### Q1: Does Bedrock Converse API Support Tools?
-
-**Need to investigate:**
-- Does `converse_stream()` accept tool specifications?
-- What is the parameter name? (`.tools()`, `.tool_config()`, etc.)
-- What format does it expect?
-
-**Hypothesis:**
-- Bedrock likely supports tools (Claude models have tool use capability)
-- Format might differ from CodeWhisperer
-- May need to check AWS SDK documentation
-
-**Investigation approach:**
-```rust
-// Check if BedrockClient has tool-related methods
+// In ConverseStreamFluentBuilder
 self.client
     .converse_stream()
     .model_id(&self.model_id)
-    .messages(messages)
-    .tools(???)  // Does this exist?
+    .set_messages(Some(messages))
+    .set_tool_config(Some(tool_config))  // ✅ Method exists
     .send()
 ```
 
-#### Q2: What is Bedrock's Tool Specification Format?
+### Tool Specification Structure
 
-**Need to investigate:**
-- Is it JSON Schema like CodeWhisperer?
-- Does it use AWS Document format?
-- Are there any format differences?
+**ToolSpecification Fields:**
+- `name` (required): String, 1-64 chars, pattern `[a-zA-Z0-9_-]+`
+- `description` (optional): String, min 1 char
+- `inputSchema` (required): ToolInputSchema object (Union type)
 
-**Possible formats:**
+**Input Schema Format:**
+
 ```rust
-// Option A: Similar to CodeWhisperer
-pub struct BedrockToolSpec {
-    name: String,
-    description: String,
-    input_schema: serde_json::Value,
-}
-
-// Option B: AWS-specific format
-pub struct BedrockToolConfig {
-    tools: Vec<ToolDefinition>,
-    tool_choice: ToolChoice,  // auto, any, specific tool
+// Bedrock uses ToolInputSchema which wraps JSON
+pub struct ToolInputSchema {
+    json: Option<Document>,  // AWS Document type
 }
 ```
 
-#### Q3: How Does Bedrock Return Tool Use Requests?
+**Comparison with CodeWhisperer:**
 
-**Need to investigate:**
-- What streaming events indicate tool use?
-- Is there a `ToolUseEvent` equivalent?
-- How is tool input provided?
+| Aspect | CodeWhisperer | Bedrock |
+|--------|---------------|---------|
+| Parameter name | `tools` in UserInputMessageContext | `toolConfig` in request |
+| Wrapper | `Tool::ToolSpecification` | `toolSpec` in tools array |
+| Schema field | `inputSchema.json` | `inputSchema.json` |
+| Schema type | FigDocument | AWS Document |
+| Format | JSON Schema | JSON Schema |
 
-**Current response handling:**
+**Key Similarity:** Both use JSON Schema format for input validation.
+
+### Tool Use Response Format
+
+**Stop Reason:**
+
+```python
+stop_reason = response['stopReason']
+if stop_reason == 'tool_use':  # ✅ Indicates tool use requested
+    # Process tool requests
+```
+
+**Tool Request Structure:**
+
+```python
+# From response['output']['message']['content']
+tool_requests = response['output']['message']['content']
+for tool_request in tool_requests:
+    if 'toolUse' in tool_request:  # ✅ Tool use block
+        tool = tool_request['toolUse']
+        tool_name = tool['name']
+        tool_use_id = tool['toolUseId']  # ✅ Unique ID for tracking
+        tool_input = tool['input']       # ✅ Parsed JSON parameters
+```
+
+**Rust SDK Types:**
+
 ```rust
+// In response stream
 match output {
-    ConverseStreamOutput::ContentBlockDelta(delta) => {
-        // Only handles text deltas
-        if let ContentBlockDelta::Text(text) = delta_content {
-            accumulated_content.push_str(&text);
+    ConverseStreamOutput::ContentBlockStart(start) => {
+        if let Some(ContentBlockStart::ToolUse(tool_use)) = start.start {
+            // tool_use.tool_use_id
+            // tool_use.name
         }
     }
-    ConverseStreamOutput::MessageStop(_) => break,
-    _ => {}
+    ConverseStreamOutput::ContentBlockDelta(delta) => {
+        if let Some(ContentBlockDelta::ToolUse(tool_use_delta)) = delta.delta {
+            // tool_use_delta.input (streamed JSON)
+        }
+    }
+    ConverseStreamOutput::ContentBlockStop(_) => {
+        // Tool use complete
+    }
 }
 ```
 
-**Possible tool use events:**
-```rust
-// Need to check if these exist:
-ConverseStreamOutput::ToolUse(???)
-ConverseStreamOutput::ToolUseStart(???)
-ConverseStreamOutput::ToolUseEnd(???)
+### Streaming Tool Use
+
+**From ConverseStream example:**
+
+```python
+for chunk in response['stream']:
+    if 'contentBlockStart' in chunk:
+        tool = chunk['contentBlockStart']['start']['toolUse']
+        tool_use['toolUseId'] = tool['toolUseId']
+        tool_use['name'] = tool['name']
+    elif 'contentBlockDelta' in chunk:
+        delta = chunk['contentBlockDelta']['delta']
+        if 'toolUse' in delta:
+            if 'input' not in tool_use:
+                tool_use['input'] = ''
+            tool_use['input'] += delta['toolUse']['input']  # ✅ Accumulate JSON
+    elif 'contentBlockStop' in chunk:
+        if 'input' in tool_use:
+            tool_use['input'] = json.loads(tool_use['input'])  # ✅ Parse complete JSON
 ```
 
-#### Q4: How to Send Tool Results Back to Bedrock?
+**Key Points:**
+- Tool use is streamed incrementally
+- Input is accumulated as string, then parsed
+- Similar to CodeWhisperer streaming pattern
 
-**Need to investigate:**
-- How are tool results formatted?
-- Are they sent as messages or separate field?
-- What is the structure?
+### Tool Result Format
 
-**Possible approaches:**
+**Sending Results Back:**
+
+```python
+tool_result = {
+    "toolUseId": tool['toolUseId'],  # ✅ Must match request ID
+    "content": [{"json": {"song": song, "artist": artist}}],  # ✅ Can be JSON or text
+    "status": "success"  # ✅ Optional, defaults to success
+}
+
+# Error case
+tool_result = {
+    "toolUseId": tool['toolUseId'],
+    "content": [{"text": "Error message"}],
+    "status": "error"  # ✅ Indicates failure
+}
+
+# Send as user message
+tool_result_message = {
+    "role": "user",
+    "content": [
+        {
+            "toolResult": tool_result  # ✅ Wrapped in toolResult
+        }
+    ]
+}
+messages.append(tool_result_message)
+```
+
+**Rust SDK Equivalent:**
+
 ```rust
-// Option A: Tool results as user messages
-Message::builder()
+let tool_result = ToolResultBlock::builder()
+    .tool_use_id(tool_use_id)
+    .content(ToolResultContentBlock::Json(result_json))
+    .status(ToolResultStatus::Success)
+    .build()?;
+
+let message = Message::builder()
     .role(ConversationRole::User)
-    .content(ContentBlock::ToolResult(result))
-    .build()
-
-// Option B: Separate tool_results field
-self.client
-    .converse_stream()
-    .messages(messages)
-    .tools(tool_specs)
-    .tool_results(results)  // Does this exist?
-    .send()
+    .content(ContentBlock::ToolResult(tool_result))
+    .build()?;
 ```
 
-#### Q5: Does Bedrock Support System Prompts?
+### System Prompts Support
 
-**Related to Task 1.4 (Agent Context):**
-- Does `converse_stream()` accept system messages?
-- Is there a separate `system` parameter?
-- How are system prompts formatted?
+✅ **Bedrock supports system prompts** via the `system` parameter:
 
-**Investigation:**
 ```rust
 self.client
     .converse_stream()
     .model_id(&self.model_id)
-    .system(???)  // Does this exist?
-    .messages(messages)
+    .set_system(Some(vec![SystemContentBlock::Text(system_prompt)]))  // ✅ Supported
+    .set_messages(Some(messages))
+    .set_tool_config(Some(tool_config))
     .send()
 ```
 
-### Research Strategy
+### Comparison: Bedrock vs CodeWhisperer
 
-**Step 1: Check AWS SDK Documentation**
-- Look for `aws-sdk-bedrockruntime` crate documentation
-- Check `ConverseStreamFluentBuilder` methods
-- Look for tool-related types
+| Feature | Bedrock | CodeWhisperer |
+|---------|---------|---------------|
+| **Tool Config** | `toolConfig` parameter | `tools` in UserInputMessageContext |
+| **Tool Spec Wrapper** | `toolSpec` | `ToolSpecification` |
+| **Input Schema** | `inputSchema.json` | `inputSchema.json` |
+| **Schema Format** | JSON Schema | JSON Schema |
+| **Tool Use ID** | `toolUseId` | `tool_use_id` |
+| **Tool Use Block** | `toolUse` in content | `toolUse` in ToolUseEvent |
+| **Tool Result** | `toolResult` in user message | `toolResult` in UserInputMessageContext |
+| **Result Content** | Array of `{json}` or `{text}` | Array of ContentBlock |
+| **Result Status** | `status` field (success/error) | `status` field |
+| **Stop Reason** | `tool_use` | N/A (event-based) |
+| **Streaming** | ContentBlockDelta events | ToolUseEvent with stop flag |
+| **System Prompts** | `system` parameter | N/A (in prompt) |
 
-**Step 2: Examine AWS SDK Types**
-- Check `aws_sdk_bedrockruntime::types` module
-- Look for Tool, ToolConfig, ToolUse, ToolResult types
-- Compare with CodeWhisperer types
+### Integration Requirements for agent_env
 
-**Step 3: Prototype Testing**
-- Create minimal test with Bedrock API
-- Try sending tool specifications
-- Observe response format
-- Document findings
+#### 1. Tool Config Construction
 
-**Step 4: Compare with Claude API**
-- Bedrock uses Claude models
-- Check Anthropic's Claude API documentation
-- Tool use format should be similar
+```rust
+// In BedrockConverseStreamModelProvider
+fn build_tool_config(tools: &[ToolDefinition]) -> ToolConfiguration {
+    let bedrock_tools: Vec<_> = tools.iter()
+        .map(|tool| {
+            Tool::builder()
+                .tool_spec(
+                    ToolSpecification::builder()
+                        .name(&tool.name)
+                        .description(&tool.description)
+                        .input_schema(
+                            ToolInputSchema::builder()
+                                .json(Document::from(tool.input_schema.clone()))
+                                .build()
+                        )
+                        .build()?
+                )
+                .build()?
+        })
+        .collect();
+    
+    ToolConfiguration::builder()
+        .set_tools(Some(bedrock_tools))
+        .build()?
+}
+```
 
-### Expected Findings
+#### 2. Request Building
 
-**Likely scenario:**
-- Bedrock supports tools (Claude has tool use)
-- Format similar to CodeWhisperer (both AWS services)
-- May have minor differences in structure
-- Will need adapter layer for agent_env
+```rust
+let mut builder = self.client
+    .converse_stream()
+    .model_id(&self.model_id)
+    .set_messages(Some(messages));
 
-**Worst case scenario:**
-- Bedrock doesn't support tools via converse_stream
-- Need to use different API endpoint
-- Significant refactoring required
+// Add tools if provided
+if !request.tools.is_empty() {
+    let tool_config = build_tool_config(&request.tools)?;
+    builder = builder.set_tool_config(Some(tool_config));
+}
 
-**Best case scenario:**
-- Bedrock format identical to CodeWhisperer
-- Can reuse existing structures
-- Minimal changes needed
+// Add system prompt if provided
+if let Some(system) = request.system_prompt {
+    builder = builder.set_system(Some(vec![
+        SystemContentBlock::Text(system)
+    ]));
+}
 
-### Documentation to Review
+let response = builder.send().await?;
+```
 
-1. **AWS SDK for Rust - Bedrock Runtime:**
-   - https://docs.rs/aws-sdk-bedrockruntime/
-   - Check `ConverseStreamFluentBuilder` methods
-   - Look for tool-related types
+#### 3. Response Parsing
 
-2. **AWS Bedrock Documentation:**
-   - Converse API reference
-   - Tool use examples
-   - Model-specific capabilities
+```rust
+let mut tool_use_accumulator = HashMap::new();
 
-3. **Anthropic Claude Documentation:**
-   - Tool use format
-   - Best practices
-   - Limitations
+for chunk in response.stream {
+    match chunk {
+        ConverseStreamOutput::ContentBlockStart(start) => {
+            if let Some(ContentBlockStart::ToolUse(tool_use)) = start.start {
+                tool_use_accumulator.insert(
+                    tool_use.tool_use_id.clone(),
+                    ToolUseAccumulator {
+                        name: tool_use.name,
+                        input: String::new(),
+                    }
+                );
+            }
+        }
+        ConverseStreamOutput::ContentBlockDelta(delta) => {
+            if let Some(ContentBlockDelta::ToolUse(tool_delta)) = delta.delta {
+                if let Some(acc) = tool_use_accumulator.get_mut(&tool_delta.tool_use_id) {
+                    acc.input.push_str(&tool_delta.input);
+                }
+            }
+        }
+        ConverseStreamOutput::ContentBlockStop(stop) => {
+            // Parse accumulated tool use
+            if let Some((id, acc)) = tool_use_accumulator.remove_entry(&stop.content_block_index) {
+                let parameters: serde_json::Value = serde_json::from_str(&acc.input)?;
+                tool_requests.push(ToolRequest {
+                    tool_use_id: id,
+                    tool_name: acc.name,
+                    parameters,
+                });
+            }
+        }
+        ConverseStreamOutput::MessageStop(stop) => {
+            stop_reason = stop.stop_reason;
+            break;
+        }
+        _ => {}
+    }
+}
+```
 
-4. **Existing Codebase:**
-   - Check if there are any Bedrock tool examples
-   - Look for commented-out code
-   - Search for "tool" in Bedrock-related files
+#### 4. Tool Result Sending
+
+```rust
+// Convert ToolResult to Bedrock format
+fn convert_tool_result(result: &ToolResult) -> ContentBlock {
+    let tool_result = ToolResultBlock::builder()
+        .tool_use_id(&result.tool_use_id)
+        .content(match &result.content {
+            ToolResultContent::Text(text) => {
+                ToolResultContentBlock::Text(text.clone())
+            }
+            ToolResultContent::Json(json) => {
+                ToolResultContentBlock::Json(Document::from(json.clone()))
+            }
+        })
+        .status(match result.status {
+            ToolResultStatus::Success => aws_sdk_bedrockruntime::types::ToolResultStatus::Success,
+            ToolResultStatus::Error => aws_sdk_bedrockruntime::types::ToolResultStatus::Error,
+        })
+        .build()?;
+    
+    ContentBlock::ToolResult(tool_result)
+}
+
+// Add to messages
+let message = Message::builder()
+    .role(ConversationRole::User)
+    .content(convert_tool_result(&result))
+    .build()?;
+```
+
+### Key Takeaways
+
+**What Works:**
+- ✅ Bedrock fully supports tools via ConverseStream
+- ✅ Format is similar to CodeWhisperer (both use JSON Schema)
+- ✅ System prompts supported
+- ✅ Streaming tool use supported
+- ✅ Tool results sent as user messages
+
+**Differences from CodeWhisperer:**
+- Parameter name: `toolConfig` vs `tools` in context
+- Wrapper structure: `toolSpec` vs `ToolSpecification`
+- Response format: ContentBlock events vs ToolUseEvent
+- Stop reason: `tool_use` string vs event-based
+
+**Implementation Complexity:**
+- Medium - Need adapter layer for format differences
+- Streaming accumulation similar to CodeWhisperer
+- Can reuse ToolDefinition structure
+- Need separate conversion functions
+
+**Estimated Effort:**
+- Bedrock tool support: 4-6 hours
+- Testing with both providers: 2-3 hours
+- Total: 6-9 hours (as originally estimated)
 
 
 ---
@@ -1757,6 +1933,441 @@ fn create_tool_registry() -> ToolRegistry {
 
 **Tests:**
 - `crates/chat-cli/src/agent_env/tools/tests/` - Tool system tests
+
+---
+
+## 10. Reusing Existing Tool Configs and Approval Rules
+
+### Senior SDE Feedback Context
+
+The senior SDE emphasized:
+> "We have to try to reuse the existing code, and do our best to keep as close to established practices as possible. We don't want to rewrite 90% of tools code later, we want to be able to merge it into our new architecture."
+
+> "Existing code has numerous tool configs that can be defined in 'agent config' and loaded into the ToolProvider. Existing implementations of the tools have comprehensive logic that allows users to predefine auto-approval rules specific for each tool, using tools business problem."
+
+This section analyzes how to reuse existing tool configuration and approval systems.
+
+### 10.1 Agent Config Tool Settings Structure
+
+**Location:** `crates/chat-cli/src/cli/agent/mod.rs`
+
+The Agent struct contains a `tools_settings` field:
+
+```rust
+pub struct Agent {
+    // ... other fields ...
+    
+    /// Settings for specific tools. These are mostly for native tools. 
+    /// The actual schema differs by tools and is documented in detail in our documentation
+    #[serde(default)]
+    #[schemars(schema_with = "tool_settings_schema")]
+    pub tools_settings: HashMap<ToolSettingTarget, serde_json::Value>,
+    
+    /// List of tools the agent is explicitly allowed to use
+    #[serde(default)]
+    pub allowed_tools: HashSet<String>,
+}
+```
+
+**Key Observations:**
+- `tools_settings` is a HashMap where keys are tool names and values are tool-specific JSON configs
+- Each tool can define its own settings schema
+- Settings are loaded from agent config files (JSON)
+- Settings persist across sessions (stored in agent config)
+
+### 10.2 Tool-Specific Settings Examples
+
+#### fs_read Settings
+
+**Schema:**
+```rust
+struct Settings {
+    #[serde(default)]
+    allowed_paths: Vec<String>,      // Glob patterns for allowed paths
+    #[serde(default)]
+    denied_paths: Vec<String>,       // Glob patterns for denied paths
+    #[serde(default)]
+    allow_read_only: bool,           // Auto-approve read operations
+}
+```
+
+**Example Agent Config:**
+```json
+{
+  "name": "my_agent",
+  "allowedTools": ["fs_read"],
+  "toolsSettings": {
+    "fs_read": {
+      "allowedPaths": ["/home/user/project/**", "/tmp/**"],
+      "deniedPaths": ["/etc/**", "/home/user/.ssh/**"],
+      "allowReadOnly": true
+    }
+  }
+}
+```
+
+**Permission Logic:**
+1. Check if tool is in `allowed_tools` → if yes, check settings
+2. Load tool-specific settings from `tools_settings["fs_read"]`
+3. Build glob sets for `allowed_paths` and `denied_paths`
+4. For each operation path:
+   - If matches `denied_paths` → Deny
+   - If matches `allowed_paths` → Allow
+   - If in CWD → Allow (CWD is always implicitly allowed)
+   - Otherwise → Ask
+5. If `allow_read_only` is true and all operations are read-only → Allow
+
+#### fs_write Settings
+
+**Schema:**
+```rust
+struct Settings {
+    #[serde(default)]
+    allowed_paths: Vec<String>,
+    #[serde(default)]
+    denied_paths: Vec<String>,
+}
+```
+
+**Similar logic to fs_read but no `allow_read_only` option.**
+
+#### execute_bash/execute_cmd Settings
+
+**Schema:**
+```rust
+struct Settings {
+    #[serde(default)]
+    allowed_commands: Vec<String>,   // Glob patterns for allowed commands
+}
+```
+
+#### use_aws Settings
+
+**Schema:**
+```rust
+struct Settings {
+    #[serde(default)]
+    allowed_services: Vec<String>,   // List of allowed AWS services
+}
+```
+
+### 10.3 Permission Evaluation Pattern
+
+**Common Pattern Across Tools:**
+
+```rust
+pub fn eval_perm(&self, os: &Os, agent: &Agent) -> PermissionEvalResult {
+    // 1. Check if tool is in allowed_tools
+    let is_in_allowlist = is_tool_in_allowlist(&agent.allowed_tools, "tool_name", None);
+    
+    // 2. Load tool-specific settings
+    let settings = agent
+        .tools_settings
+        .get("tool_name")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    
+    // 3. Deserialize settings to tool-specific struct
+    let Settings { ... } = match serde_json::from_value::<Settings>(settings) {
+        Ok(settings) => settings,
+        Err(e) => {
+            error!("Failed to deserialize tool settings: {:?}", e);
+            return PermissionEvalResult::Ask;
+        },
+    };
+    
+    // 4. Apply tool-specific permission logic
+    // - Check denied patterns → Deny
+    // - Check allowed patterns → Allow
+    // - Check special cases (CWD, read-only, etc.)
+    // - Default → Ask
+}
+```
+
+**Key Features:**
+- Settings are optional (defaults to empty JSON object)
+- Invalid settings → Ask (safe default)
+- Tool-specific logic encapsulated in each tool
+- Glob pattern support for path/command matching
+- Special cases handled per tool (e.g., CWD always allowed for fs_read)
+
+### 10.4 Integration Strategy for agent_env
+
+#### Option A: Direct Reuse (Recommended)
+
+**Approach:** Keep existing `eval_perm()` methods and call them from ToolProvider.
+
+**Implementation:**
+```rust
+pub struct ToolProvider {
+    tools: HashMap<String, Arc<dyn Tool>>,
+    agent: Arc<Agent>,  // Store agent config
+    trust_all_tools: bool,
+}
+
+impl ToolProvider {
+    pub async fn execute_tool(
+        &self,
+        request: ToolRequest,
+        context: &ToolContext,
+    ) -> ToolResult {
+        // Get tool
+        let tool = self.tools.get(&request.tool_name)?;
+        
+        // Check permissions using existing eval_perm
+        let perm_result = tool.eval_perm(&context.os, &self.agent);
+        
+        match perm_result {
+            PermissionEvalResult::Allow => {
+                // Execute tool
+                tool.execute(request.parameters, context).await
+            }
+            PermissionEvalResult::Ask => {
+                // Return approval required
+                ToolResult::ApprovalRequired { tool_request: request }
+            }
+            PermissionEvalResult::Deny(reasons) => {
+                // Return error with reasons
+                ToolResult::Failure {
+                    tool_name: request.tool_name,
+                    tool_use_id: request.tool_use_id,
+                    error: format!("Permission denied: {}", reasons.join(", ")),
+                }
+            }
+        }
+    }
+}
+```
+
+**Benefits:**
+- ✅ Zero code duplication
+- ✅ Existing settings work immediately
+- ✅ All existing tests pass
+- ✅ Glob patterns, CWD logic, etc. all preserved
+- ✅ Easy to maintain
+
+**Challenges:**
+- Need to adapt Tool trait to include `eval_perm()` method
+- Need to pass Agent config to ToolProvider
+
+#### Option B: Extract Settings Logic
+
+**Approach:** Extract settings loading and glob matching into shared utilities.
+
+**Not recommended** - adds complexity without benefit.
+
+### 10.5 Tool Trait Design for Reuse
+
+**Proposed Tool Trait:**
+
+```rust
+#[async_trait]
+pub trait Tool: Send + Sync {
+    // Tool metadata
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn input_schema(&self) -> serde_json::Value;
+    
+    // Permission evaluation (reuse existing logic)
+    fn eval_perm(&self, os: &Os, agent: &Agent) -> PermissionEvalResult;
+    
+    // Execution
+    async fn execute(
+        &self,
+        parameters: serde_json::Value,
+        context: &ToolContext,
+    ) -> Result<ToolResult>;
+}
+```
+
+**Key Points:**
+- `eval_perm()` matches existing signature exactly
+- Can directly call existing tool implementations
+- No need to rewrite permission logic
+
+### 10.6 Adapting Existing Tools
+
+**Strategy:** Create thin wrappers around existing tool implementations.
+
+**Example for fs_read:**
+
+```rust
+// In agent_env/tools/fs_read.rs
+use crate::cli::chat::tools::fs_read as legacy;
+
+pub struct FsReadTool;
+
+#[async_trait]
+impl Tool for FsReadTool {
+    fn name(&self) -> &str {
+        "fs_read"
+    }
+    
+    fn description(&self) -> &str {
+        // Load from tool_index.json or hardcode
+        "Tool for reading files, directories and images..."
+    }
+    
+    fn input_schema(&self) -> serde_json::Value {
+        // Load from tool_index.json
+        load_tool_schema("fs_read")
+    }
+    
+    fn eval_perm(&self, os: &Os, agent: &Agent) -> PermissionEvalResult {
+        // Deserialize parameters to legacy FsRead
+        let fs_read: legacy::FsRead = serde_json::from_value(parameters)?;
+        
+        // Call existing eval_perm
+        fs_read.eval_perm(os, agent)
+    }
+    
+    async fn execute(
+        &self,
+        parameters: serde_json::Value,
+        context: &ToolContext,
+    ) -> Result<ToolResult> {
+        // Deserialize to legacy FsRead
+        let mut fs_read: legacy::FsRead = serde_json::from_value(parameters)?;
+        
+        // Validate
+        fs_read.validate(&context.os).await?;
+        
+        // Execute using existing invoke logic
+        let mut output = Vec::new();
+        let invoke_output = fs_read.invoke(
+            &context.os,
+            &mut output,
+            &mut HashMap::new(),  // line_tracker
+            &Agents::default(),   // agents
+        ).await?;
+        
+        // Convert to ToolResult
+        Ok(ToolResult {
+            status: ToolResultStatus::Success,
+            content: vec![ToolResultContent::Text(
+                String::from_utf8(output)?
+            )],
+        })
+    }
+}
+```
+
+**Benefits:**
+- ✅ Reuses all existing logic
+- ✅ Minimal new code
+- ✅ Easy to test (existing tests still work)
+- ✅ Can gradually refactor internals later
+
+### 10.7 Session-Level vs Runtime Approval
+
+**Existing System:**
+- Settings in agent config → persistent across sessions
+- `allowed_tools` list → persistent
+- Runtime approval → not persistent (asked every time)
+
+**New System (ToolProvider):**
+- Load settings from agent config → persistent
+- `trust_all_tools` flag → session-level (from CLI flag)
+- `full_trust` per tool → session-level (set via 't' command)
+- Runtime approval → per-invocation
+
+**ToolApprovalRule Structure:**
+
+```rust
+pub struct ToolApprovalRule {
+    // From agent config (persistent)
+    pub in_allowed_tools: bool,
+    pub tool_settings: serde_json::Value,
+    
+    // From CLI flags (session-level)
+    pub trust_all_tools: bool,
+    pub pre_approved: bool,  // From --trust-tools list
+    
+    // From user commands (session-level)
+    pub full_trust: bool,  // Set via 't' command in approval prompt
+}
+```
+
+**Approval Decision Logic:**
+
+```rust
+impl ToolProvider {
+    fn requires_approval(&self, tool_name: &str, parameters: &serde_json::Value) -> bool {
+        // 1. Check global trust
+        if self.trust_all_tools {
+            return false;  // Auto-approve
+        }
+        
+        // 2. Check session-level full trust
+        if let Some(rule) = self.approval_rules.get(tool_name) {
+            if rule.full_trust {
+                return false;  // Auto-approve
+            }
+            
+            if rule.pre_approved {
+                return false;  // Auto-approve (from --trust-tools)
+            }
+        }
+        
+        // 3. Check tool-specific permissions
+        let tool = self.tools.get(tool_name)?;
+        match tool.eval_perm(&self.os, &self.agent) {
+            PermissionEvalResult::Allow => false,  // Auto-approve
+            PermissionEvalResult::Deny(_) => true,  // Will be denied, but still "requires approval" to show error
+            PermissionEvalResult::Ask => true,     // Requires approval
+        }
+    }
+}
+```
+
+### 10.8 Migration Checklist
+
+**For each tool to migrate:**
+
+1. ✅ Create wrapper struct implementing Tool trait
+2. ✅ Reuse existing `eval_perm()` method
+3. ✅ Adapt `invoke()` to `execute()` signature
+4. ✅ Convert InvokeOutput to ToolResult
+5. ✅ Load tool schema from tool_index.json
+6. ✅ Register in ToolProvider
+7. ✅ Test with existing agent configs
+8. ✅ Verify all permission scenarios work
+
+**No need to:**
+- ❌ Rewrite permission logic
+- ❌ Change settings schema
+- ❌ Modify agent config format
+- ❌ Update existing tests (they still work)
+
+### 10.9 Key Takeaways
+
+**What to Reuse:**
+- ✅ Entire `eval_perm()` implementation
+- ✅ Tool settings schema and deserialization
+- ✅ Glob pattern matching logic
+- ✅ Special cases (CWD, read-only, etc.)
+- ✅ Tool validation logic
+- ✅ Tool execution logic (invoke methods)
+
+**What to Adapt:**
+- Tool trait interface (add `eval_perm()` method)
+- Execution signature (parameters as JSON, return ToolResult)
+- Output format (InvokeOutput → ToolResult)
+- Context passing (ToolContext instead of multiple params)
+
+**What to Add:**
+- Session-level approval tracking (full_trust flag)
+- ToolProvider orchestration
+- Integration with EventBus
+- UI approval flows
+
+**Complexity Estimate:**
+- Adapting fs_read: 2-3 hours (mostly mechanical)
+- Adapting fs_write: 2-3 hours (similar to fs_read)
+- ToolProvider with reuse: 4-6 hours (simpler than original estimate)
+- Testing: 2-3 hours (verify existing configs work)
+
+**Total savings:** ~10-15 hours compared to rewriting from scratch.
 
 ---
 
