@@ -60,8 +60,8 @@
 ---
 
 ### 4. mvp-tools-basic ⚠️ CRITICAL PATH
-- [ ] Re-scope, include Codewhisperer Model Provider, include tool configs from the agent config, include approval layer
-- [x] Analyzed
+- [x] Re-scope, include Codewhisperer Model Provider, include tool configs from the agent config, include approval layer idea, explain two tools to enable first
+- [ ] Analyzed
 - [ ] Designed
 - [ ] Planned
 - [ ] Implemented
@@ -71,7 +71,7 @@
   - [ ] Phase 4: Implement fs_read and fs_write
 
 **Files:**
-- Scope: `planning/mvp-tools-basic/mvp-tools-basic-0-scope.md`
+- Scope: `planning/mvp-tools-basic/mvp-tools-basic-0-scope-v2.md` (note -v2 in the name!)
 - Research: `planning/mvp-tools-basic/mvp-tools-basic-1-research.md`
 - Design: `planning/mvp-tools-basic/mvp-tools-basic-2-design.md`
 - Plan: `planning/mvp-tools-basic/mvp-tools-basic-3-implementation-plan.md`

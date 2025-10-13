@@ -4,6 +4,56 @@
 
 This workflow covers the integration of the tool system into the agent_env architecture. The goal is to implement two basic tools (fs_read and fs_write) and create a strategy for migrating other tools. This is the most complex task in the MVP and requires significant research and design work.
 
+## Corrections provided by the team's senior SDE - pay attention, update this scope doc
+
+- In this workflow we add several moving pieces 
+   - ToolProvider class that will be used by Worker to access tools
+      - a property in Worker, built in WorkerBuilder based on the agent config - refer to the existing implementation
+      - encapsulates state for: 
+         - the list of available tools, 
+         - parameters of auto-approval for each tool
+      - provides `execute_tool(ToolRequest)` that can return `ToolResult` - hides calling actual tools from the consumer (AgentLoopTask)
+   - `ToolResult` is a enum of Success/Failure/ApprovalRequired
+   - AgentLoopTask would add Success and Failure results to Conversation History in the Context Container, and continue the loop - query LLM again with new request
+      - Conversation History must be able to keep multiple Tool Requests per Assistant Response
+      - Conversation History must be able to keep Tool Results for each request 
+      - Conversation History structure must stay close to model APIs - need to research how Codewhisperer API and Bedrock API handle tool request/response transmission
+   - ContextBuilder taking in the list of tools and passing it through updated ModelRequest to ModelProviders
+   - ContextBuilder passing the list of Tool Requests and Results in the Conversation History through updated ModelRequest to ModelProviders
+   - BOTH existing ModelProviders must be able to handle updated ModelRequest properly - Bedrock and Codewhisperer
+   - AgentLooptask will put ApprovalRequired results into Worker's 'OpenToolsApprovalRequests' and exit the loop (end the task)
+      - note that we can teorethically have more than one tool use requested per model response
+      - OpenToolsApprovalRequest will contain the source ToolUse reqest
+   - AgentLooptask must send new special EventBus event for each open tool aproval request
+   - UI can update each OpenToolsApprovalRequest with approval result: Approved or Rejected(reason)
+   - UI can, by request from the user, update `worker.tool_provider.approval_rules[tool_id].full_trust = true`
+      - That flag would make ToolProvider auto-approve all consequtive calls to that tool
+   - TextUi must support tool approvals
+      - Should initiate when task complete, as an alternative mode for the prompt
+      - Simplified model like in the current implemenation (research the code base for text "Allow this action? Use 't' to trust (always allow) this tool for the session. [y/n/t]:" (`t`,`y`, `n`, and `t` are displayed in green color, separately))
+         - y sets request to Approved
+         - t sets 'full_trust' flag and sets request to Approved
+         - n sets request to Rejected
+         - any other text sets request to Rejected(text) - user can provide a rejection reason to the model
+      - Once main worker has no open requests left - launch AgentLoopTask again
+   - StructuredIO must support tool approvals
+      - `{worker_id:...,approval_id:...,result:...}` where result either approve|reject|nay text (will be taken as Reject(text))
+         - also causes a check and if the worker has no open requests left - launch AgentLoopTask for it
+      - `{worker_id:...,tool_id:...,full_trust:true|false}`
+   - AgentLoopTask on start must check if worker has any OpenToolsApprovalRequest
+      - execute those with results and put result into the conversation history, remove the approval request
+      - if there's any with no results - stop
+      - otherwise - start the regular loop
+   
+Refer to available CodeWhisperer API documentation:
+- codebase/aws-codewhisperer-clients.md
+- codebase/aws-codewhisperer-calls.md
+- codebase/aws-codewhisperer-calls-example-request.json
+- codebase/aws-codewhisperer-calls-example-response.json
+
+
+----
+
 ## Tasks Included
 
 ### 1.3: Tool System Integration
