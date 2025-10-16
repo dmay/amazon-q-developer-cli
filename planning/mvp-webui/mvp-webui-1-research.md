@@ -1,56 +1,192 @@
-# MVP WebUI - Research and Analysis
+# MVP WebUI - Research Document
 
 ## Overview
 
-This document analyzes the existing architecture and identifies key elements for implementing a web-based UI for the agent_env system. The WebUI will leverage the event-driven architecture to provide a browser-based interface for interacting with workers.
-
-## Related System Elements
-
-### 1. EventBus Architecture (Core Foundation)
-
-**Location**: `crates/chat-cli/src/agent_env/event_bus.rs`
-
-**Key Characteristics**:
-- Uses tokio `broadcast::Sender` for efficient multicasting
-- Default buffer size: 1000 events
-- Handles lagged events gracefully (drops oldest when buffer full)
-- Cheap to clone (Arc internally)
-- Non-blocking publish (never waits for subscribers)
-
-**Event Types** (`crates/chat-cli/src/agent_env/events.rs`):
-```rust
-pub enum AgentEnvironmentEvent {
-    Worker(WorkerEvent),      // Created, Deleted, LifecycleStateChanged
-    Job(JobEvent),            // Started, Completed, OutputChunk
-    AgentLoop(AgentLoopEvent), // ResponseReceived, ToolUseRequestReceived
-    System(SystemEvent),      // ShutdownInitiated
-}
-```
-
-**Relevance to WebUI**:
-- WebUI will subscribe to EventBus like other UIs
-- Events are already Clone-able for multicasting
-- Need to serialize events to JSON for WebSocket transmission
-- Buffer size may need tuning for slow WebSocket connections
-
-**Potential Issues**:
-- Events contain `Instant` timestamps (not serializable to JSON by default)
-- Some event data (like `JobCompletionResult`) contains complex types
-- Need to create JSON-friendly event representations
+This document contains research findings about the existing Q CLI system components that are relevant to implementing a web-based user interface. The goal is to understand the current architecture, identify integration points, and surface potential challenges before moving to the design phase.
 
 ---
 
-### 2. AgentEnvironment Coordinator
+## 1. Reference Implementation Analysis (web-q)
+
+### Architecture Overview
+
+The web-q reference implementation at `/Volumes/workplace/web-q/` provides a working example of a web-based terminal interface for Q Chat. Key architectural components:
+
+**Backend Stack:**
+- **Framework**: Express.js (Node.js)
+- **WebSocket**: `ws` library for real-time communication
+- **Terminal**: `node-pty` for spawning Q Chat processes
+- **Terminal Emulation**: `@xterm/headless` for server-side terminal state
+
+**Frontend Stack:**
+- **Framework**: Vanilla JavaScript (no framework)
+- **Terminal Display**: `@xterm/xterm` for browser-based terminal rendering
+- **Communication**: Standard WebSocket API + REST fetch API
+
+### API Structure
+
+**REST Endpoints:**
+```
+GET    /api/tasks           - List all tasks
+POST   /api/tasks           - Create new task
+GET    /api/tasks/:id       - Get task details
+PUT    /api/tasks/:id       - Update task name
+DELETE /api/tasks/:id       - Delete task
+GET    /api/tasks/:id/qlog  - Get parsed conversation bubbles (Q Chat parsing)
+GET    /api/config          - Get server configuration
+```
+
+**WebSocket Protocol:**
+- **URL Pattern**: `/ws/task/:id`
+- **Message Format**: JSON with `type` field
+- **Input Message**: `{"type": "input", "data": "user typed content"}`
+- **Output**: Raw terminal data streamed to client
+
+### Key Design Patterns
+
+1. **Session Management**: 
+   - `SessionManager` interface with pluggable implementations
+   - `InMemorySessionManager` for current implementation
+   - Each task wraps a `TerminalSession` which manages PTY process
+
+2. **Multi-Client Support**:
+   - Multiple WebSocket clients can connect to same task
+   - Each task maintains a Set of connected clients
+   - Terminal output broadcast to all clients
+   - Any client can send input
+
+3. **Q Chat Parsing** (Phase 2.1 feature):
+   - `QChatParser` transforms raw terminal output into structured "bubbles"
+   - Bubble types: initMessage, humanRequest, aiResponse, toolUse, thinking
+   - `BubbleStore` manages bubble collection
+   - Separate WebSocket endpoint for real-time bubble updates
+   - Escape sequence handling for ANSI codes
+
+4. **Graceful Shutdown**:
+   - SIGINT handler notifies all WebSocket clients
+   - Sends red terminal message to active sessions
+   - Cleans up all tasks and terminates processes
+   - Closes HTTP server before exit
+
+### Relevant Code Locations
+
+- **Server**: `src/server.js` - Main entry point, HTTP/WebSocket setup
+- **Session Manager**: `src/session/InMemorySessionManager.js`
+- **Terminal Session**: `src/session/TerminalSession.js`
+- **WebSocket Handler**: `src/websocket/TerminalWebSocketHandler.js`
+- **Q Chat Parser**: `src/parsing/QChatParserV2.js`
+- **REST API**: `src/routes/taskRoutes.js`
+- **Frontend**: `public/js/app.js`, `public/js/taskManager.js`
+
+### Applicability to Q CLI
+
+**Directly Applicable:**
+- WebSocket URL pattern and message format
+- Multi-client connection management
+- Static file serving approach
+- Graceful shutdown coordination
+
+**Needs Adaptation:**
+- Replace Express.js with Axum (Rust)
+- Replace node-pty with existing Q CLI Session/Worker architecture
+- Replace QChatParser with event-based streaming (EventBus)
+- Integrate with existing AgentEnvironment instead of separate SessionManager
+
+---
+
+## 2. EventBus and Event Streaming Architecture
+
+### EventBus Implementation
+
+**Location**: `crates/chat-cli/src/agent_env/event_bus.rs`
+
+The EventBus is a central event distribution system built on tokio broadcast channels:
+
+```rust
+pub struct EventBus {
+    sender: broadcast::Sender<AgentEnvironmentEvent>,
+    buffer_size: usize,
+}
+```
+
+**Key Characteristics:**
+- **Pattern**: Publish-subscribe with tokio broadcast channels
+- **Buffer Size**: Configurable (default 1000 events)
+- **Cloneable**: EventBus is `Clone`, can be shared across components
+- **Subscriber Count**: Can query current subscriber count
+- **Lag Handling**: Receivers get `RecvError::Lagged(n)` when buffer overflows
+
+**API:**
+```rust
+pub fn new(buffer_size: usize) -> Self
+pub fn publish(&self, event: AgentEnvironmentEvent)
+pub fn subscribe(&self) -> broadcast::Receiver<AgentEnvironmentEvent>
+pub fn subscriber_count(&self) -> usize
+```
+
+### Event Types
+
+**Location**: `crates/chat-cli/src/agent_env/events.rs`
+
+Events are organized in a nested enum structure:
+
+```rust
+pub enum AgentEnvironmentEvent {
+    Worker(WorkerEvent),
+    Job(JobEvent),
+    AgentLoop(AgentLoopEvent),
+    System(SystemEvent),
+}
+```
+
+**Worker Events:**
+- `Created { worker_id, name, timestamp }`
+- `Deleted { worker_id, timestamp }`
+- `LifecycleStateChanged { worker_id, old_state, new_state, timestamp }`
+
+**Job Events:**
+- `Started { worker_id, job_id, task_type, timestamp }`
+- `Completed { worker_id, job_id, result, timestamp }`
+- `OutputChunk { worker_id, job_id, chunk, timestamp }`
+
+**Output Chunk Types:**
+```rust
+pub enum OutputChunk {
+    AssistantResponse(String),
+    ToolUse { tool_name, tool_input },
+    ToolResult { tool_name, result },
+}
+```
+
+**AgentLoop Events:**
+- `ResponseReceived { worker_id, job_id, text, timestamp }`
+- `ToolUseRequestReceived { worker_id, job_id, tool_name, tool_input, timestamp }`
+
+**System Events:**
+- `ShutdownInitiated { reason, timestamp }`
+
+### Event Helpers
+
+All events provide:
+- `worker_id()` - Extract worker_id if present
+- `timestamp()` - Get event timestamp (Instant)
+- Type checking: `is_worker_event()`, `is_job_event()`, etc.
+
+### Integration Points for WebUI
+
+1. **Subscribe to EventBus**: WebUI can subscribe to receive all events
+2. **Filter by Worker**: Use `event.worker_id()` to route events to specific workers
+3. **Convert to JSON**: Need serializable representation (Instant → timestamp)
+4. **Broadcast to Clients**: Forward events to WebSocket clients
+
+---
+
+## 3. UI Implementation Patterns
+
+### UserInterface Trait
 
 **Location**: `crates/chat-cli/src/agent_env/agent_environment.rs`
 
-**Key Characteristics**:
-- Manages event multicasting to all UIs
-- Processes commands from main UI via mpsc channel
-- Supports one main UI + multiple headless UIs
-- Coordinates shutdown and cleanup
-
-**UI Trait Definitions**:
 ```rust
 #[async_trait]
 pub trait UserInterface: Send + Sync {
@@ -58,216 +194,475 @@ pub trait UserInterface: Send + Sync {
     fn command_receiver(&self) -> mpsc::Receiver<PromptResult>;
     async fn handle_event(&self, event: AgentEnvironmentEvent);
 }
+```
 
+**Responsibilities:**
+- `start()`: Initialize UI, spawn tasks, return immediately
+- `command_receiver()`: Provide channel for sending commands to AgentEnvironment
+- `handle_event()`: Process events from EventBus
+
+### HeadlessInterface Trait
+
+```rust
 #[async_trait]
 pub trait HeadlessInterface: Send + Sync {
     async fn handle_event(&self, event: AgentEnvironmentEvent);
 }
 ```
 
-**Relevance to WebUI**:
-- WebUI could be implemented as either UserInterface or HeadlessInterface
-- If main UI: needs command channel for sending commands
-- If headless: only receives events (simpler, but less interactive)
-- **Decision needed**: Should WebUI be main UI or headless?
+**Purpose**: Non-interactive UIs that only observe events (no command input)
 
-**Architecture Options**:
-
-**Option A: WebUI as Main UI**
-- Pros: Can send commands directly, full control
-- Cons: Only one main UI allowed, conflicts with TextUi/StructuredIO
-- Use case: Web-only mode
-
-**Option B: WebUI as Headless UI**
-- Pros: Can run alongside TextUi, multiple instances possible
-- Cons: Needs separate command channel mechanism
-- Use case: Monitoring/observability
-
-**Option C: Hybrid Approach**
-- WebUI runs as separate service with its own command handling
-- Subscribes to EventBus as headless UI
-- Provides REST API for commands
-- Use case: Most flexible, supports multiple web clients
-
-**Recommendation**: Option C (Hybrid) - most flexible and scalable
-
----
-
-### 3. Existing UI Implementations
-
-#### TextUi (Reference Implementation)
+### TextUi Implementation
 
 **Location**: `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs`
 
-**Key Patterns**:
-- **Prompt Queue Pattern**: Only reads input when worker is Idle
-- Uses `Notify` to signal when prompt is ready
-- Handles UI commands internally (/usage, /context, /status, /workers)
-- Forwards agent commands to AgentEnvironment
+**Architecture:**
+- Uses `InputHandler` for readline-style input
 - Spawns separate task for prompt loop
+- Uses `Arc<Notify>` for prompt readiness signaling
+- Handles Ctrl+C via `CtrlCHandler`
+- Maintains command channel for sending to AgentEnvironment
 
-**Event Handling**:
+**Key Patterns:**
 ```rust
-async fn handle_event(&self, event: AgentEnvironmentEvent) {
-    // Filter by worker_id
-    if let Some(wid) = event.worker_id() {
-        if wid != self.main_worker_id {
-            return;
-        }
-    }
-    
-    match event {
-        AgentEnvironmentEvent::Job(JobEvent::OutputChunk { chunk, .. }) => {
-            // Print output with flush
-        }
-        AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged { 
-            new_state: WorkerLifecycleState::Idle, .. 
-        }) => {
-            // Signal prompt_ready
-        }
-        _ => {}
-    }
+pub struct TextUi {
+    session: Arc<Session>,
+    main_worker_id: Uuid,
+    input_handler: Arc<tokio::sync::Mutex<InputHandler>>,
+    cmd_sender: mpsc::Sender<PromptResult>,
+    cmd_receiver: Arc<std::sync::Mutex<Option<mpsc::Receiver<PromptResult>>>>,
+    prompt_ready: Arc<Notify>,
+    shutdown_signal: Arc<Notify>,
+    interactive: bool,
 }
 ```
 
-**Relevance to WebUI**:
-- Similar event filtering needed (by worker_id)
-- Need to convert OutputChunk to WebSocket messages
-- Lifecycle state changes should update UI state
-- Prompt queue pattern may not apply (web is always-ready)
+**Event Handling:**
+- Filters events by worker_id
+- Updates prompt state based on worker lifecycle
+- Displays output chunks as they arrive
+- Signals prompt readiness when worker becomes Idle
 
-#### StructuredIO (JSON Output Reference)
+### StructuredIO Implementation
 
 **Location**: `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs`
 
-**Key Patterns**:
-- **Always-Reading Pattern**: Continuously reads stdin
-- Outputs JSON for events
-- No prompt queue (suitable for piped input)
+**Architecture:**
+- Reads single-line prompts from stdin
+- Outputs structured JSON events to stdout
+- Suitable for scripting and automation
+- Spawns reader task with responsive shutdown
 
-**JSON Output Format**:
+**JSON Input Format:**
 ```json
-{"worker_id": "...", "assistant_response": "..."}
-{"worker_id": "...", "tool_use_request": {"tool_name": "...", "tool_input": {...}}}
-{"worker_id": "...", "lifecycle_state": "idle"}
+{"command": "prompt", "worker_id": "uuid", "text": "user input"}
+{"command": "quit"}
 ```
 
-**Relevance to WebUI**:
-- Good reference for JSON serialization
-- Similar event-to-JSON conversion needed
-- WebSocket messages will use similar structure
+**JSON Output Format:**
+```json
+{"type": "worker_created", "worker_id": "uuid", "name": "worker name"}
+{"type": "output_chunk", "worker_id": "uuid", "chunk": "text"}
+{"type": "job_completed", "worker_id": "uuid", "success": true}
+```
+
+**Key Patterns:**
+- Uses separate reader task for stdin (blocking I/O)
+- Processor loop with `tokio::select!` for responsive shutdown
+- Parses JSON commands or treats as plain text
+- Defaults to first worker if worker_id not specified
+
+### Common Patterns Across UIs
+
+1. **Command Channel**: `mpsc::channel` for sending commands to AgentEnvironment
+2. **Shutdown Signal**: `Arc<Notify>` for coordinated shutdown
+3. **Session Access**: `Arc<Session>` for querying worker state
+4. **Async Tasks**: Spawn separate tasks for I/O operations
+5. **Event Filtering**: Filter events by worker_id for relevant updates
 
 ---
 
-### 4. Command System
+## 4. AgentEnvironment Coordination
 
-**Location**: `crates/chat-cli/src/agent_env/commands.rs`
+### Architecture
 
-**Command Types**:
+**Location**: `crates/chat-cli/src/agent_env/agent_environment.rs`
+
+```rust
+pub struct AgentEnvironment {
+    session: Arc<Session>,
+    event_bus: EventBus,
+    main_ui: Option<Arc<dyn UserInterface>>,
+    headless_uis: Vec<Arc<dyn HeadlessInterface>>,
+    shutdown_signal: Arc<Notify>,
+    interactive: bool,
+}
+```
+
+**Responsibilities:**
+- Coordinate event multicasting to all UIs
+- Process commands from main UI
+- Manage shutdown coordination
+- Monitor job completion in non-interactive mode
+
+### Event Multicasting
+
+**Pattern**: Spawn dedicated task that subscribes to EventBus and forwards to all UIs
+
+```rust
+fn spawn_event_multicast(&self) -> JoinHandle<()> {
+    let mut receiver = self.event_bus.subscribe();
+    let headless_uis = self.headless_uis.clone();
+    let main_ui = self.main_ui.clone();
+    
+    tokio::spawn(async move {
+        loop {
+            match receiver.recv().await {
+                Ok(event) => {
+                    // Forward to main UI
+                    if let Some(ui) = &main_ui {
+                        ui.handle_event(event.clone()).await;
+                    }
+                    // Forward to headless UIs
+                    for headless_ui in &headless_uis {
+                        headless_ui.handle_event(event.clone()).await;
+                    }
+                }
+                Err(RecvError::Lagged(n)) => {
+                    tracing::warn!("Event bus lagged by {} events", n);
+                }
+                Err(RecvError::Closed) => break,
+            }
+        }
+    })
+}
+```
+
+### Command Processing
+
+**Flow**: UI → PromptResult → AgentEnvironmentCommand → Session
+
 ```rust
 pub enum AgentEnvironmentCommand {
     Prompt { worker_id: Uuid, text: String },
-    Compact { worker_id: Uuid, instruction: Option<String> },
+    Compact { worker_id: Uuid, instruction: String },
     Quit,
 }
 
-pub enum UiCommand {
-    Usage,
-    Context,
-    Status,
-    Workers,
+pub enum PromptResult {
+    Command(AgentEnvironmentCommand),
+    Shutdown,
 }
 ```
 
-**Relevance to WebUI**:
-- Need to parse commands from WebSocket messages
-- REST API should support same command types
-- JSON command format needed:
-  ```json
-  {"type": "prompt", "worker_id": "...", "text": "..."}
-  {"type": "cancel", "worker_id": "..."}
-  ```
+**Command Handling:**
+- `Prompt`: Add message to conversation history, launch agent loop
+- `Compact`: Launch compact conversation task
+- `Quit`: Trigger shutdown signal
 
----
+### Main Execution Loop
 
-### 5. Session and Worker Management
-
-**Location**: `crates/chat-cli/src/agent_env/session.rs`, `worker.rs`
-
-**Key Characteristics**:
-- Session manages multiple workers
-- Workers have lifecycle states (Idle, Busy, IdleFailed)
-- Workers have task metadata (extensible HashMap)
-- Session provides `get_worker()`, `list_workers()`, etc.
-
-**Relevance to WebUI**:
-- Need API endpoints to list workers
-- Need to display worker states in UI
-- Initial state loading on WebSocket connect
-- Worker creation/deletion support (future)
-
-**API Endpoints Needed**:
-- `GET /api/workers` - List all workers
-- `GET /api/workers/:id` - Get worker details
-- `POST /api/workers/:id/prompt` - Send prompt
-- `POST /api/workers/:id/cancel` - Cancel job
-- `WS /ws/events` - Event stream
-
----
-
-## Reference Implementation Analysis
-
-### web-q Project Structure
-
-**Location**: `/Volumes/workplace/web-q/`
-
-**Key Components**:
-1. **Express Server** (`src/server.js`):
-   - HTTP server for static files
-   - WebSocket server for real-time communication
-   - REST API for task management
-   - Graceful shutdown handling
-
-2. **WebSocket Handler** (`src/websocket/`):
-   - Connection routing by URL path
-   - Client management per task
-   - Message forwarding (input/output)
-   - Multi-client support
-
-3. **Frontend** (`public/`):
-   - Single-page application
-   - xterm.js for terminal display
-   - Task list sidebar
-   - Tab-based interface (Terminal/Chat)
-
-**Relevant Patterns**:
-- **URL-based routing**: `/ws/task/:taskId` for WebSocket connections
-- **Client sets**: Multiple browsers can connect to same task
-- **Broadcast pattern**: Output sent to all connected clients
-- **JSON messages**: Structured communication protocol
-
-**Differences from agent_env**:
-- web-q manages terminal sessions (PTY)
-- agent_env manages AI agent workers
-- web-q has task creation/deletion
-- agent_env has event-driven architecture
-
----
-
-## Technical Challenges and Solutions
-
-### Challenge 1: Event Serialization
-
-**Problem**: Events contain non-serializable types (Instant, complex enums)
-
-**Solution**:
-- Create separate JSON-friendly event types
-- Convert `Instant` to ISO 8601 timestamps
-- Flatten complex enums to simple structures
-
-**Example**:
 ```rust
-#[derive(Serialize)]
+pub async fn run(&self) -> Result<()> {
+    // Start Ctrl+C handler
+    let ctrl_c_handler = Arc::new(CtrlCHandler::new(...));
+    ctrl_c_handler.start_listening();
+    
+    // Spawn event multicast task
+    let multicast_handle = self.spawn_event_multicast();
+    
+    // Start main UI
+    if let Some(ui) = &self.main_ui {
+        ui.start().await?;
+        let mut cmd_receiver = ui.command_receiver();
+        
+        // Process commands
+        loop {
+            tokio::select! {
+                Some(result) = cmd_receiver.recv() => {
+                    // Handle command
+                }
+                _ = self.shutdown_signal.notified() => {
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Cleanup
+    multicast_handle.abort();
+    Ok(())
+}
+```
+
+### Integration Points for WebUI
+
+1. **Headless UI**: WebUI should implement `HeadlessInterface` (no stdin/stdout)
+2. **Command Channel**: WebUI needs its own command channel for WebSocket commands
+3. **Event Subscription**: WebUI subscribes to EventBus via AgentEnvironment multicast
+4. **Shutdown Coordination**: WebUI participates in shutdown via `Arc<Notify>`
+5. **Session Access**: WebUI can query worker state via `Arc<Session>`
+
+---
+
+## 5. Web Framework Options
+
+### Current Dependencies
+
+**Location**: `crates/chat-cli/Cargo.toml`
+
+Already available:
+- `tokio` - Async runtime
+- `tokio-tungstenite` - WebSocket support (tokio-native)
+- `hyper` - HTTP primitives
+- `serde_json` - JSON serialization
+
+### Recommended: Axum
+
+**Why Axum:**
+- Built on tokio and hyper (already in dependencies)
+- Excellent tokio integration (native async/await)
+- Type-safe routing and extractors
+- Tower middleware ecosystem
+- Active development and community
+
+**Additional Dependencies Needed:**
+- `axum` - Web framework
+- `tower-http` - Static file serving, CORS
+- `tower` - Middleware utilities
+
+**Example Integration:**
+```rust
+use axum::{
+    Router,
+    routing::{get, post},
+    extract::{State, Path, WebSocketUpgrade},
+    response::IntoResponse,
+};
+use tower_http::services::ServeDir;
+
+let app = Router::new()
+    .route("/ws", get(websocket_handler))
+    .route("/api/workers", get(list_workers))
+    .route("/api/workers/:id/prompt", post(send_prompt))
+    .nest_service("/", ServeDir::new("web/public"))
+    .with_state(AppState {
+        session: session.clone(),
+        event_bus: event_bus.clone(),
+    });
+```
+
+### Alternatives Considered
+
+**Warp:**
+- Also tokio-based
+- Filter-based routing (less intuitive)
+- Less active development than Axum
+
+**Actix-web:**
+- Different async runtime (actix)
+- Would require runtime bridging
+- Not recommended for tokio-heavy codebase
+
+---
+
+## 6. Potential Pitfalls and Challenges
+
+### 6.1 Event Serialization
+
+**Problem**: `AgentEnvironmentEvent` uses `Instant` (monotonic time, not serializable)
+
+**Impact**: Cannot directly serialize events to JSON for WebSocket
+
+**Solution Options:**
+1. Create separate serializable event types for WebUI
+2. Convert `Instant` to `SystemTime` or timestamp during serialization
+3. Use serde with custom serializer for Instant
+
+**Recommendation**: Create `WebUIEvent` enum that mirrors `AgentEnvironmentEvent` but uses serializable types
+
+### 6.2 Event Lag and Buffer Management
+
+**Problem**: Broadcast channel can lag if WebSocket clients are slow to consume events
+
+**Impact**: 
+- Clients receive `RecvError::Lagged(n)` and miss events
+- Need to handle reconnection and state synchronization
+
+**Solution Options:**
+1. Increase buffer size for WebUI subscribers
+2. Implement event replay mechanism
+3. Send full state snapshot on reconnection
+4. Use separate broadcast channel for WebUI with larger buffer
+
+**Recommendation**: Combination of larger buffer + state snapshot on connect
+
+### 6.3 Worker ID Routing
+
+**Problem**: Events contain worker_id, but WebUI needs to handle multiple workers
+
+**Impact**: Need filtering/routing logic to send events to correct WebSocket clients
+
+**Solution Options:**
+1. One WebSocket per worker (like web-q: `/ws/worker/:id`)
+2. Single WebSocket with client-side filtering
+3. Server-side filtering based on client subscriptions
+
+**Recommendation**: One WebSocket per worker for simplicity (matches web-q pattern)
+
+### 6.4 Shutdown Coordination
+
+**Problem**: Multiple shutdown sources (Ctrl+C, WebSocket close, AgentEnvironment quit)
+
+**Impact**: Need careful coordination to avoid race conditions
+
+**Solution Options:**
+1. Single shutdown signal (`Arc<Notify>`) shared by all components
+2. Web server shutdown triggers AgentEnvironment shutdown
+3. AgentEnvironment shutdown triggers web server shutdown
+
+**Recommendation**: AgentEnvironment owns shutdown, web server participates via signal
+
+### 6.5 Static File Serving
+
+**Problem**: Need to serve HTML/JS/CSS files for frontend
+
+**Impact**: Requires file serving capability in web server
+
+**Solution**: Use `tower-http::services::ServeDir` with Axum
+
+**Example:**
+```rust
+.nest_service("/", ServeDir::new("web/public"))
+```
+
+### 6.6 CORS Configuration
+
+**Problem**: If frontend accessed from different origin, need CORS headers
+
+**Impact**: Browser will block WebSocket and API requests
+
+**Solution**: Use `tower-http::cors::CorsLayer` for development
+
+**Recommendation**: Local-only by default (127.0.0.1), CORS for development mode
+
+### 6.7 Port Configuration
+
+**Problem**: Web server port might conflict with other services
+
+**Impact**: Server fails to start if port in use
+
+**Solution**: Make port configurable via CLI argument or environment variable
+
+**Recommendation**: Default to 8080, allow override via `--web-port` flag
+
+### 6.8 Session and EventBus Sharing
+
+**Problem**: Need to share Session and EventBus with web server
+
+**Impact**: Must ensure thread-safety and proper Arc usage
+
+**Solution**: Both are already Arc-wrapped and Clone, safe to share
+
+**Verification:**
+- `Session` is `Arc<Session>` ✓
+- `EventBus` is `Clone` ✓
+- Both are `Send + Sync` ✓
+
+### 6.9 Command Channel Architecture
+
+**Problem**: WebUI needs to send commands to AgentEnvironment
+
+**Impact**: Need command channel separate from main UI
+
+**Solution Options:**
+1. WebUI implements `HeadlessInterface` + separate command channel
+2. WebUI implements `UserInterface` (but no stdin/stdout)
+3. Direct command injection via shared channel
+
+**Recommendation**: WebUI as `HeadlessInterface` + commands via REST API or WebSocket messages
+
+### 6.10 Time Representation
+
+**Problem**: Events use `Instant` (monotonic), but web needs wall-clock time
+
+**Impact**: Cannot display absolute timestamps in UI
+
+**Solution Options:**
+1. Convert `Instant` to `SystemTime` during serialization
+2. Store both `Instant` and `SystemTime` in events
+3. Calculate wall-clock time from Instant + start time
+
+**Recommendation**: Convert to ISO 8601 timestamp during WebUI event conversion
+
+### 6.11 Binary Data in Output
+
+**Problem**: `OutputChunk` might contain binary data or special characters
+
+**Impact**: JSON encoding might fail or produce invalid JSON
+
+**Solution**: Use base64 encoding for binary data, escape special characters
+
+**Recommendation**: Treat all output as UTF-8 text, use serde_json's string escaping
+
+### 6.12 WebSocket Connection Lifecycle
+
+**Problem**: Need to handle connection, disconnection, reconnection gracefully
+
+**Impact**: State synchronization, event replay, cleanup
+
+**Solution Pattern:**
+```rust
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_websocket(socket, state))
+}
+
+async fn handle_websocket(socket: WebSocket, state: AppState) {
+    let (sender, receiver) = socket.split();
+    
+    // Send initial state snapshot
+    send_state_snapshot(&sender, &state).await;
+    
+    // Subscribe to events
+    let mut event_rx = state.event_bus.subscribe();
+    
+    // Spawn sender task
+    let send_task = tokio::spawn(async move {
+        while let Ok(event) = event_rx.recv().await {
+            // Convert and send event
+        }
+    });
+    
+    // Spawn receiver task
+    let recv_task = tokio::spawn(async move {
+        while let Some(Ok(msg)) = receiver.next().await {
+            // Handle incoming commands
+        }
+    });
+    
+    // Wait for either task to complete
+    tokio::select! {
+        _ = send_task => {},
+        _ = recv_task => {},
+    }
+    
+    // Cleanup
+}
+```
+
+---
+
+## 7. Key Code Elements for Implementation
+
+### 7.1 Event Conversion
+
+Need to create serializable event types:
+
+```rust
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum WebUIEvent {
     WorkerCreated {
@@ -275,548 +670,183 @@ pub enum WebUIEvent {
         name: String,
         timestamp: String, // ISO 8601
     },
+    WorkerDeleted {
+        worker_id: String,
+        timestamp: String,
+    },
+    WorkerStateChanged {
+        worker_id: String,
+        old_state: String,
+        new_state: String,
+        timestamp: String,
+    },
+    JobStarted {
+        worker_id: String,
+        job_id: String,
+        task_type: String,
+        timestamp: String,
+    },
+    JobCompleted {
+        worker_id: String,
+        job_id: String,
+        success: bool,
+        timestamp: String,
+    },
     OutputChunk {
         worker_id: String,
         job_id: String,
-        chunk_type: String, // "assistant_response", "tool_use", "tool_result"
-        data: serde_json::Value,
+        chunk: String,
+        timestamp: String,
     },
-    // ...
+}
+
+impl From<AgentEnvironmentEvent> for WebUIEvent {
+    fn from(event: AgentEnvironmentEvent) -> Self {
+        // Convert Instant to ISO 8601 timestamp
+        // Convert Uuid to String
+        // Flatten nested enums
+    }
 }
 ```
 
-### Challenge 2: WebSocket Connection Management
+### 7.2 WebSocket Message Types
 
-**Problem**: Multiple browser tabs connecting to same worker
-
-**Solution**:
-- Maintain `HashMap<Uuid, HashSet<WebSocketId>>` for worker-to-clients mapping
-- Broadcast events to all clients of a worker
-- Handle disconnections gracefully
-- Send initial state snapshot on connect
-
-**Implementation Pattern** (from web-q):
 ```rust
-struct WebSocketManager {
-    clients: Arc<Mutex<HashMap<Uuid, HashSet<WebSocketId>>>>,
-}
-
-impl WebSocketManager {
-    async fn add_client(&self, worker_id: Uuid, ws_id: WebSocketId) {
-        let mut clients = self.clients.lock().await;
-        clients.entry(worker_id).or_default().insert(ws_id);
-    }
-    
-    async fn broadcast(&self, worker_id: Uuid, message: &str) {
-        let clients = self.clients.lock().await;
-        if let Some(client_set) = clients.get(&worker_id) {
-            for ws_id in client_set {
-                // Send message to each client
-            }
-        }
-    }
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum WebSocketCommand {
+    Prompt {
+        worker_id: String,
+        text: String,
+    },
+    Cancel {
+        worker_id: String,
+    },
 }
 ```
 
-### Challenge 3: Web Server Integration
+### 7.3 Application State
 
-**Problem**: Running HTTP/WebSocket server in same process as CLI
-
-**Solution Options**:
-
-**Option A: Embedded Server**
-- Run axum server in tokio task
-- Share Session and EventBus via Arc
-- Pros: Simple deployment, single process
-- Cons: Port conflicts, resource sharing
-
-**Option B: Separate Process**
-- Run web server as separate binary
-- Communicate via IPC or shared EventBus
-- Pros: Isolation, independent scaling
-- Cons: Complex deployment, IPC overhead
-
-**Recommendation**: Option A (Embedded) for MVP
-
-**Implementation**:
 ```rust
-// In ChatArgs::execute()
-if enable_web_ui {
-    let web_server = WebServer::new(
-        "127.0.0.1:8080".parse().unwrap(),
-        session.clone(),
-        event_bus.clone(),
-    );
-    
-    tokio::spawn(async move {
-        if let Err(e) = web_server.run().await {
-            error!("Web server error: {}", e);
-        }
-    });
-    
-    info!("Web UI available at http://127.0.0.1:8080");
+#[derive(Clone)]
+pub struct AppState {
+    pub session: Arc<Session>,
+    pub event_bus: EventBus,
+    pub cmd_sender: mpsc::Sender<PromptResult>,
 }
 ```
 
-### Challenge 4: Initial State Loading
+### 7.4 WebUI Structure
 
-**Problem**: New WebSocket connections need current worker state
+```rust
+pub struct WebUI {
+    session: Arc<Session>,
+    event_bus: EventBus,
+    cmd_sender: mpsc::Sender<PromptResult>,
+    shutdown_signal: Arc<Notify>,
+}
 
-**Solution**:
-- Send snapshot of worker state on connect
-- Include: worker list, current states, recent output
-- Use Session API to query current state
-
-**Snapshot Format**:
-```json
-{
-  "type": "snapshot",
-  "workers": [
-    {
-      "id": "...",
-      "name": "main",
-      "state": "idle",
-      "metadata": {...}
+#[async_trait]
+impl HeadlessInterface for WebUI {
+    async fn handle_event(&self, event: AgentEnvironmentEvent) {
+        // Convert to WebUIEvent
+        // Broadcast to all WebSocket clients
     }
-  ],
-  "recent_output": [
-    {"worker_id": "...", "chunk": "..."}
-  ]
 }
 ```
-
-### Challenge 5: Command Authentication
-
-**Problem**: WebSocket commands need validation
-
-**Solution** (MVP - local only):
-- No authentication for localhost
-- Validate worker_id exists
-- Validate command format
-- Rate limiting (future)
-
-**Future Considerations**:
-- Token-based auth for remote access
-- User-based access control
-- Command audit logging
 
 ---
 
-## Architecture Recommendations
+## 8. Summary and Recommendations
+
+### Key Findings
+
+1. **EventBus is Well-Suited**: The existing EventBus architecture is perfect for WebUI integration. It already supports multiple subscribers and handles event distribution.
+
+2. **UI Patterns are Established**: TextUi and StructuredIO provide clear patterns for implementing new UIs. WebUI should follow similar patterns.
+
+3. **Web-q Provides Blueprint**: The web-q reference implementation demonstrates a working web-based terminal interface with similar requirements.
+
+4. **Axum is Best Choice**: Axum provides excellent tokio integration and is the most natural fit for the existing codebase.
+
+5. **Serialization is Main Challenge**: Converting events from internal representation (Instant, Uuid) to web-friendly format (timestamps, strings) is the primary technical challenge.
 
 ### Recommended Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      ChatArgs::execute()                     │
-│  ┌────────────┐  ┌─────────┐  ┌────────┐  ┌──────────────┐ │
-│  │  EventBus  │  │ Session │  │ Worker │  │ AgentEnviron │ │
-│  └────────────┘  └─────────┘  └────────┘  └──────────────┘ │
+│                     AgentEnvironment                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   TextUi     │  │ StructuredIO │  │    WebUI     │      │
+│  │ (main UI)    │  │ (headless)   │  │ (headless)   │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                  │                  │              │
+│         └──────────────────┴──────────────────┘              │
+│                            │                                 │
+│                     ┌──────▼──────┐                          │
+│                     │  EventBus   │                          │
+│                     └──────┬──────┘                          │
+│                            │                                 │
+│                     ┌──────▼──────┐                          │
+│                     │   Session   │                          │
+│                     └─────────────┘                          │
 └─────────────────────────────────────────────────────────────┘
-         │                │
-         │                │
-         ▼                ▼
-┌─────────────────────────────────────┐
-│         WebServer (axum)             │
-│  ┌────────────┐  ┌────────────────┐ │
-│  │ HTTP/REST  │  │   WebSocket    │ │
-│  │   API      │  │    Handler     │ │
-│  └────────────┘  └────────────────┘ │
-│  ┌────────────────────────────────┐ │
-│  │      Static File Serving       │ │
-│  └────────────────────────────────┘ │
-└─────────────────────────────────────┘
-         │                │
-         │                │
-         ▼                ▼
-┌─────────────────────────────────────┐
-│          Browser (Frontend)          │
-│  ┌────────────┐  ┌────────────────┐ │
-│  │ Worker List│  │  Output Display│ │
-│  └────────────┘  └────────────────┘ │
-│  ┌────────────────────────────────┐ │
-│  │       Prompt Input             │ │
-│  └────────────────────────────────┘ │
-└─────────────────────────────────────┘
+                             │
+                             │
+                    ┌────────▼────────┐
+                    │   Web Server    │
+                    │     (Axum)      │
+                    ├─────────────────┤
+                    │ Static Files    │
+                    │ REST API        │
+                    │ WebSocket       │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │    Browser      │
+                    │  (Frontend)     │
+                    └─────────────────┘
 ```
 
-### Component Responsibilities
+### Next Steps for Design Phase
 
-**WebServer**:
-- HTTP server (axum)
-- Static file serving
-- REST API endpoints
-- WebSocket endpoint
-- CORS configuration
+1. **Define WebUIEvent Types**: Create serializable event types
+2. **Design WebSocket Protocol**: Define message formats for commands and events
+3. **Design REST API**: Define endpoints for worker management
+4. **Design WebUI Component**: Implement HeadlessInterface
+5. **Design Web Server**: Axum server with routing and handlers
+6. **Design Frontend**: HTML/JS/CSS structure
+7. **Design State Synchronization**: Initial state + event streaming
+8. **Design Shutdown Flow**: Coordinated shutdown across components
 
-**WebSocketHandler**:
-- Connection management
-- Event subscription and forwarding
-- Command parsing and validation
-- Client lifecycle management
+### Critical Design Decisions
 
-**WebUI (Headless UI)**:
-- Subscribes to EventBus
-- Converts events to JSON
-- Broadcasts to WebSocket clients
-- No command sending (uses REST API)
-
-**Frontend**:
-- Worker list display
-- Streaming output display
-- Prompt input
-- WebSocket client
-- REST API client
+1. **WebSocket per Worker vs Single WebSocket**: Recommend per-worker (simpler, matches web-q)
+2. **HeadlessInterface vs UserInterface**: Recommend HeadlessInterface (no stdin/stdout)
+3. **Command Channel**: Recommend WebSocket messages for commands (no separate channel)
+4. **Event Buffering**: Recommend larger buffer + state snapshot on connect
+5. **Time Representation**: Recommend ISO 8601 timestamps in WebUIEvent
+6. **Port Configuration**: Recommend CLI flag `--web-ui` with optional `--web-port`
 
 ---
 
-## Critical Implementation Details
-
-### 1. Event-to-JSON Conversion
-
-**Key Consideration**: Maintain event semantics while being JSON-friendly
-
-**Approach**:
-```rust
-impl From<AgentEnvironmentEvent> for WebUIEvent {
-    fn from(event: AgentEnvironmentEvent) -> Self {
-        match event {
-            AgentEnvironmentEvent::Job(JobEvent::OutputChunk { 
-                worker_id, job_id, chunk, timestamp 
-            }) => {
-                match chunk {
-                    OutputChunk::AssistantResponse(text) => {
-                        WebUIEvent::OutputChunk {
-                            worker_id: worker_id.to_string(),
-                            job_id: job_id.to_string(),
-                            chunk_type: "assistant_response".to_string(),
-                            data: json!({"text": text}),
-                            timestamp: format_timestamp(timestamp),
-                        }
-                    }
-                    // ... other chunk types
-                }
-            }
-            // ... other events
-        }
-    }
-}
-```
-
-### 2. WebSocket Message Protocol
-
-**Client → Server**:
-```json
-{"type": "prompt", "worker_id": "...", "text": "..."}
-{"type": "cancel", "worker_id": "..."}
-```
-
-**Server → Client**:
-```json
-{"type": "worker_created", "worker_id": "...", "name": "...", "timestamp": "..."}
-{"type": "output_chunk", "worker_id": "...", "chunk_type": "...", "data": {...}}
-{"type": "worker_state_changed", "worker_id": "...", "state": "...", "timestamp": "..."}
-```
-
-### 3. Axum Dependencies
-
-**Required Crates**:
-```toml
-[dependencies]
-axum = "0.7"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["fs", "cors"] }
-tokio-tungstenite = "0.21"
-```
-
-### 4. Static File Structure
-
-```
-web/
-├── public/
-│   ├── index.html
-│   ├── css/
-│   │   └── styles.css
-│   └── js/
-│       ├── app.js
-│       ├── websocket.js
-│       └── api.js
-```
-
----
-
-## Potential Pitfalls
-
-### 1. EventBus Buffer Overflow
-
-**Issue**: Slow WebSocket clients may cause EventBus lag
-
-**Mitigation**:
-- Increase EventBus buffer size for web deployments
-- Implement backpressure in WebSocket handler
-- Drop old events for lagged clients
-- Monitor lag metrics
-
-### 2. Worker ID Filtering
-
-**Issue**: WebUI receives events for all workers, needs filtering
-
-**Mitigation**:
-- Filter events by worker_id in WebSocket handler
-- Allow clients to subscribe to specific workers
-- Send only relevant events to each client
-
-### 3. Concurrent Modifications
-
-**Issue**: Multiple web clients sending commands simultaneously
-
-**Mitigation**:
-- Session already handles concurrent access (Arc + Mutex)
-- Commands are queued via mpsc channel
-- Worker state prevents concurrent job execution
-
-### 4. WebSocket Reconnection
-
-**Issue**: Browser refresh or network issues cause disconnection
-
-**Mitigation**:
-- Send snapshot on reconnect
-- Client-side reconnection logic
-- Exponential backoff for retries
-- Display connection status in UI
-
-### 5. Port Conflicts
-
-**Issue**: Port 8080 may be in use
-
-**Mitigation**:
-- Make port configurable via CLI arg or env var
-- Try multiple ports if first fails
-- Display actual port in startup message
-
----
-
-## Dependencies and Integration Points
-
-### Rust Dependencies
-
-**New Dependencies**:
-- `axum` - Web framework
-- `tower-http` - HTTP middleware (CORS, static files)
-- `tokio-tungstenite` - WebSocket support
-- `serde_json` - JSON serialization (already present)
-
-**Existing Dependencies**:
-- `tokio` - Async runtime (already present)
-- `uuid` - Worker IDs (already present)
-- `eyre` - Error handling (already present)
-
-### Integration with Existing Code
-
-**No Changes Required**:
-- EventBus (already supports multiple subscribers)
-- Session (already thread-safe with Arc)
-- Worker (already serializable)
-- AgentEnvironment (already supports headless UIs)
-
-**Minor Changes Required**:
-- Add `--web-ui` flag to ChatArgs
-- Add web server initialization in ChatArgs::execute()
-- Create WebUI event conversion functions
-
-**New Code Required**:
-- WebServer struct and implementation
-- WebSocket handler
-- WebUI headless interface
-- Frontend HTML/CSS/JS
-- REST API handlers
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-1. **Event Serialization**:
-   - Test conversion of all event types to JSON
-   - Verify timestamp formatting
-   - Test round-trip serialization
-
-2. **WebSocket Message Parsing**:
-   - Test command parsing from JSON
-   - Test invalid message handling
-   - Test malformed JSON
-
-3. **Client Management**:
-   - Test client add/remove
-   - Test broadcast to multiple clients
-   - Test cleanup on disconnect
-
-### Integration Tests
-
-1. **WebSocket Connection**:
-   - Connect and receive snapshot
-   - Send command and verify execution
-   - Disconnect and verify cleanup
-
-2. **Event Flow**:
-   - Trigger event in Session
-   - Verify WebSocket receives event
-   - Verify JSON format
-
-3. **Multi-Client**:
-   - Connect multiple clients
-   - Verify all receive events
-   - Disconnect one, verify others unaffected
-
-### Manual Testing
-
-1. **Browser Testing**:
-   - Open in Chrome, Firefox, Safari
-   - Test WebSocket connection
-   - Test prompt sending
-   - Test output display
-
-2. **Reconnection Testing**:
-   - Refresh browser
-   - Kill and restart server
-   - Network interruption simulation
-
-3. **Concurrent Access**:
-   - Multiple browser tabs
-   - Multiple browsers
-   - Verify state consistency
-
----
-
-## Performance Considerations
-
-### Expected Load
-
-**MVP Assumptions**:
-- Single user (localhost only)
-- 1-5 concurrent browser tabs
-- 1-10 workers
-- 10-100 events per second
-- 1-10 KB per event
-
-**Scalability Limits**:
-- EventBus buffer: 1000 events (configurable)
-- WebSocket connections: 100+ (OS limit)
-- Memory per client: ~10 KB
-- CPU overhead: Minimal (async I/O)
-
-### Optimization Opportunities
-
-1. **Event Batching**:
-   - Batch multiple events into single WebSocket message
-   - Reduce WebSocket frame overhead
-   - Implement in Phase 2
-
-2. **Selective Subscriptions**:
-   - Allow clients to subscribe to specific workers
-   - Reduce unnecessary event transmission
-   - Implement in Phase 2
-
-3. **Compression**:
-   - Enable WebSocket compression
-   - Reduce bandwidth for large outputs
-   - Implement in Phase 2
-
----
-
-## Security Considerations
-
-### MVP (Local Only)
-
-**Assumptions**:
-- Runs on localhost (127.0.0.1)
-- Single user
-- No authentication required
-- No encryption required
-
-**Basic Security**:
-- Validate all input
-- Sanitize worker_id and command parameters
-- Prevent path traversal in static files
-- Rate limiting (basic)
-
-### Future (Remote Access)
-
-**Required Security**:
-- HTTPS/WSS (TLS encryption)
-- Token-based authentication
-- User-based access control
-- CORS configuration
-- Input validation and sanitization
-- Rate limiting and DDoS protection
-- Audit logging
-
----
-
-## Summary
-
-### Key Findings
-
-1. **EventBus is well-suited for WebUI**: Already supports multiple subscribers, events are Clone-able
-2. **Headless UI pattern is ideal**: WebUI should be headless, use REST API for commands
-3. **Reference implementation exists**: web-q provides good patterns for WebSocket handling
-4. **Minimal changes to core**: No changes needed to EventBus, Session, or Worker
-5. **Event serialization is main challenge**: Need JSON-friendly event types
-
-### Critical Success Factors
-
-1. **Event-to-JSON conversion**: Must preserve event semantics
-2. **WebSocket connection management**: Handle multiple clients per worker
-3. **Initial state loading**: Send snapshot on connect
-4. **Error handling**: Graceful degradation on failures
-5. **Testing**: Thorough testing of WebSocket lifecycle
-
-### Recommended Approach
-
-1. **Phase 1: Backend** (8-12 hours)
-   - Implement WebServer with axum
-   - Implement WebSocket handler
-   - Implement event-to-JSON conversion
-   - Implement REST API endpoints
-
-2. **Phase 2: Frontend** (8-12 hours)
-   - Port web-q design
-   - Implement WebSocket client
-   - Implement worker list display
-   - Implement output display and prompt input
-
-3. **Phase 3: Polish** (4-6 hours)
-   - Error handling and reconnection
-   - UI polish and styling
-   - Testing and bug fixes
-   - Documentation
-
-**Total Estimated Effort**: 20-30 hours
-
----
-
-## Next Steps
-
-1. **Design Phase**: Create detailed technical design document
-   - Define exact API endpoints
-   - Define WebSocket message protocol
-   - Design frontend component structure
-   - Create mockups/wireframes
-
-2. **Implementation Phase**: Follow design document
-   - Implement backend first (testable without frontend)
-   - Implement frontend second (can test with backend)
-   - Integrate and test end-to-end
-
-3. **Testing Phase**: Comprehensive testing
-   - Unit tests for all components
-   - Integration tests for WebSocket flow
-   - Manual testing in browsers
-   - Performance testing
-
-4. **Documentation Phase**: Update documentation
-   - User guide for web UI
-   - Developer guide for extending web UI
-   - API documentation
-   - Troubleshooting guide
+## Appendix: File Locations Reference
+
+### Q CLI Codebase
+- EventBus: `crates/chat-cli/src/agent_env/event_bus.rs`
+- Events: `crates/chat-cli/src/agent_env/events.rs`
+- AgentEnvironment: `crates/chat-cli/src/agent_env/agent_environment.rs`
+- TextUi: `crates/chat-cli/src/cli/chat/agent_env_ui/text_ui.rs`
+- StructuredIO: `crates/chat-cli/src/cli/chat/agent_env_ui/structured_io.rs`
+- Session: `crates/chat-cli/src/agent_env/session.rs`
+- ChatArgs: `crates/chat-cli/src/cli/chat/mod.rs`
+
+### Web-q Reference
+- Server: `/Volumes/workplace/web-q/src/server.js`
+- Session Manager: `/Volumes/workplace/web-q/src/session/InMemorySessionManager.js`
+- Terminal Session: `/Volumes/workplace/web-q/src/session/TerminalSession.js`
+- WebSocket Handler: `/Volumes/workplace/web-q/src/websocket/TerminalWebSocketHandler.js`
+- REST API: `/Volumes/workplace/web-q/src/routes/taskRoutes.js`
+- Q Chat Parser: `/Volumes/workplace/web-q/src/parsing/QChatParserV2.js`
+- Frontend: `/Volumes/workplace/web-q/public/js/`
+- Documentation: `/Volumes/workplace/web-q/codebase/`

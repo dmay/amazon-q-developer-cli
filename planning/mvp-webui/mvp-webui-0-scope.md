@@ -6,19 +6,17 @@ This workflow covers the implementation of a web-based user interface for the ag
 
 ## Tasks Included
 
-### 2.1: Web UI with Minimal Worker Presentation
-
----
-
 ## Task 2.1: Web UI with Minimal Worker Presentation
 
 ### Current State
 
 **Reference Implementation:**
-- Reference web UI exists at `/Volumes/workplace/web-q/`
+- Reference web UI (both Ui and backend API) exists at `/Volumes/workplace/web-q/`
 - Contains public/ folder with static assets
 - Contains src/ folder with frontend code
 - Provides design patterns and UI components
+- **IMPORTANT** You MUST review and analyze provided exmple at `/Volumes/workplace/web-q/` - identify its API and UI implementation. It is very close ideologically to what we want to get, except we don't need to deal with showing terminal in web
+
 
 **Agent Environment:**
 - EventBus supports multiple UI subscribers
@@ -45,7 +43,7 @@ This workflow covers the implementation of a web-based user interface for the ag
 **UI Features:**
 - Worker list with status indicators (Idle, Busy, IdleFailed)
 - Worker details (ID, current task, metadata)
-- Streaming output display (like terminal)
+- Streaming output display (like chat with message bubbles)
 - Input field for sending prompts
 - Cancel button for active jobs
 - Event log (optional)
@@ -61,8 +59,8 @@ This workflow covers the implementation of a web-based user interface for the ag
 ### Key Challenges
 
 1. **Web Server Integration:**
-   - Run HTTP server in same process or separate?
-   - Port configuration and conflicts
+   - Run HTTP server in same process
+   - Port configuration and conflicts - ignore for MVP, use 8080
    - Shutdown coordination
 
 2. **Event Streaming:**
@@ -73,13 +71,14 @@ This workflow covers the implementation of a web-based user interface for the ag
 
 3. **Command Handling:**
    - How to send commands from web UI to AgentEnvironment?
-   - REST API vs WebSocket messages?
-   - Authentication and security
+    - REST API (WebSocket messages only used for receiving ongoing responses and signals)
+   - Authentication and security - skip for MVP
 
 4. **State Synchronization:**
    - Initial state loading (existing workers)
    - Real-time updates (events)
    - Handling missed events (reconnection)
+   - All of that can be done with API structur similar to what was implemented in web-q prototype
 
 5. **Security:**
    - Authentication (if needed)

@@ -59,7 +59,7 @@
 
 ---
 
-### 4. mvp-tools-basic ⚠️ CRITICAL PATH
+### 4. mvp-tools-basic ⚠️ ON HOLD, SKIP AND PROCEEED TO mwp-webui
 - [ ] Re-scope, include Codewhisperer Model Provider, include tool configs from the agent config, include approval layer
 - [x] Analyzed
 - [ ] Designed
@@ -90,7 +90,7 @@
 
 **Files:**
 - Scope: `planning/mvp-webui/mvp-webui-0-scope.md`
-- Research: `planning/mvp-webui/mvp-webui-1-research.md` (if needed)
+- Research: `planning/mvp-webui/mvp-webui-1-research.md`
 - Design: `planning/mvp-webui/mvp-webui-2-design.md`
 - Plan: `planning/mvp-webui/mvp-webui-3-implementation-plan.md`
 - Log: `planning/mvp-webui/mvp-webui-4-implementation-log.md`
