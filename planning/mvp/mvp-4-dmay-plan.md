@@ -101,7 +101,7 @@
 ### 5.1 mvp-webui-plus
 - [x] Re-scope, create a proper scope document from the rough idea in the scope file
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
 
