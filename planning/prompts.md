@@ -726,6 +726,7 @@ Your goal is to proceed with analysys and research for the next workflow that no
 Research and analysys process:
 - Identify existing elemets of the system that are related to the selected workflow
 - Look through the documentation and the code for those elements
+- Look through the provided examples
 - Summarize your findings in the research document for the selected workflow (use the path from the primary plan sheet)
     - Note: you don't need to _solve_ the problem defined in the workflow, you are gathering information for the actual design process
     - Explain the landscape for the related code elements and their specs and responsibility

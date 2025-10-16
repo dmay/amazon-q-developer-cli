@@ -81,7 +81,7 @@
 
 ### 5. mvp-webui
 - [x] Analyzed
-- [ ] Designed
+- [x] Designed
 - [ ] Planned
 - [ ] Implemented
   - [ ] Phase 1: Design web architecture

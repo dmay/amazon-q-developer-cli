@@ -15,7 +15,7 @@ This workflow covers the implementation of a web-based user interface for the ag
 - Contains public/ folder with static assets
 - Contains src/ folder with frontend code
 - Provides design patterns and UI components
-- **IMPORTANT** You MUST review and analyze provided exmple at `/Volumes/workplace/web-q/` - identify its API and UI implementation. It is very close ideologically to what we want to get, except we don't need to deal with showing terminal in web
+- **IMPORTANT** provided exmple at `/Volumes/workplace/web-q/` defins API that uses 'task' terminology. This 'task' is different from Agent Environment 'task'. Web UI that we work on must be centered around AgentEnv 'workers', and worker can have a task running with it.
 
 
 **Agent Environment:**
