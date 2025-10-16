@@ -102,7 +102,7 @@
 - [x] Re-scope, create a proper scope document from the rough idea in the scope file
 - [x] Analyzed
 - [x] Designed
-- [ ] Planned
+- [x] Planned
 - [ ] Implemented
 
 **Files:**
