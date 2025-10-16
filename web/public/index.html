@@ -8,39 +8,55 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Q CLI - Web UI</h1>
-            <div class="status">
-                <span class="status-indicator" id="connection-status"></span>
-                <span id="connection-text">Connecting...</span>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Workers</h2>
+                <button id="new-worker-button" class="btn-new">+ New</button>
             </div>
-        </header>
+            <div id="worker-list" class="worker-list"></div>
+        </aside>
         
-        <main>
-            <div class="worker-container">
-                <div class="worker-header">
-                    <h2 id="worker-name">Worker</h2>
-                    <div class="worker-state">
-                        <span class="state-badge" id="worker-state">idle</span>
-                    </div>
-                </div>
-                
-                <div class="output-container">
-                    <div class="output" id="output"></div>
-                </div>
-                
-                <div class="input-container">
-                    <input 
-                        type="text" 
-                        id="prompt-input" 
-                        placeholder="Enter your prompt..."
-                        disabled
-                    >
-                    <button id="send-button" disabled>Send</button>
-                    <button id="cancel-button" disabled>Cancel</button>
-                </div>
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1 id="worker-title">Q CLI - Web UI</h1>
+                <div id="connection-status" class="connection-status"></div>
+            </header>
+            
+            <div id="conversation" class="conversation"></div>
+            
+            <div class="input-area">
+                <textarea id="prompt-input" placeholder="Type your message..." rows="3"></textarea>
+                <button id="send-button" class="btn-send">Send</button>
+                <button id="cancel-button" class="btn-cancel" style="display: none;">Cancel</button>
             </div>
         </main>
+    </div>
+    
+    <!-- New Worker Dialog -->
+    <div id="new-worker-dialog" class="dialog" style="display: none;">
+        <div class="dialog-content">
+            <h2>Create New Worker</h2>
+            <form id="new-worker-form">
+                <label>
+                    Worker Name (optional):
+                    <input type="text" id="worker-name-input" placeholder="auto-generated">
+                </label>
+                <label>
+                    Agent Name:
+                    <input type="text" id="worker-agent-input" placeholder="default" required>
+                </label>
+                <label>
+                    Working Directory (optional):
+                    <input type="text" id="worker-workdir-input" placeholder="~/">
+                </label>
+                <div class="dialog-buttons">
+                    <button type="submit" id="create-worker-button" class="btn-primary">Create</button>
+                    <button type="button" id="cancel-dialog-button" class="btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <script src="app.js"></script>

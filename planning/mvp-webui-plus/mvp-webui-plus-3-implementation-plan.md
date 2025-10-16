@@ -27,71 +27,71 @@ This implementation plan transforms the basic WebUI (mvp-webui) into a practical
 
 ### 1.1 WebSocket Route Changes
 
-- [ ] **Task 1.1.1**: Change WebSocket route from `/ws/worker/:worker_id` to `/ws` (Design Doc §3.2)
+- [x] **Task 1.1.1**: Change WebSocket route from `/ws/worker/:worker_id` to `/ws` (Design Doc §3.2)
   - Modify route definition in `server.rs`
   - Update handler signature to remove `Path(worker_id)` parameter
   - Remove worker_id validation logic from handler
 
-- [ ] **Task 1.1.2**: Remove event filtering by worker_id (Design Doc §3.1)
+- [x] **Task 1.1.2**: Remove event filtering by worker_id (Design Doc §3.1)
   - Remove filter logic in event forwarding task
   - Send all events to all connected clients
   - Update event forwarding loop to not check worker_id
 
 ### 1.2 WebSocket Command Extensions
 
-- [ ] **Task 1.2.1**: Add `worker_id` parameter to existing commands (Design Doc §3.3)
+- [x] **Task 1.2.1**: Add `worker_id` parameter to existing commands (Design Doc §3.3)
   - Modify `Prompt` command to include `worker_id: String`
   - Modify `Cancel` command to include `worker_id: String`
   - Update command handlers to use worker_id parameter
 
-- [ ] **Task 1.2.2**: Add `CreateWorker` command (Design Doc §3.3)
+- [x] **Task 1.2.2**: Add `CreateWorker` command (Design Doc §3.3)
   - Add `CreateWorker` variant to `WebSocketCommand` enum
   - Include fields: `name: Option<String>`, `agent: String`, `working_directory: Option<String>`
   - Add serde tags for JSON serialization
 
-- [ ] **Task 1.2.3**: Add `GetWorkers` command (Design Doc §3.3)
+- [x] **Task 1.2.3**: Add `GetWorkers` command (Design Doc §3.3)
   - Add `GetWorkers` variant to `WebSocketCommand` enum
   - No parameters needed (requests all workers)
 
-- [ ] **Task 1.2.4**: Add `GetConversationHistory` command (Design Doc §3.3)
+- [x] **Task 1.2.4**: Add `GetConversationHistory` command (Design Doc §3.3)
   - Add `GetConversationHistory` variant to `WebSocketCommand` enum
   - Include field: `worker_id: String`
 
 ### 1.3 WebSocket Event Extensions
 
-- [ ] **Task 1.3.1**: Add `WorkersSnapshot` event (Design Doc §3.4)
+- [x] **Task 1.3.1**: Add `WorkersSnapshot` event (Design Doc §3.4)
   - Add `WorkersSnapshot` variant to `WebUIEvent` enum
   - Include fields: `workers: Vec<WorkerMetadataJson>`, `timestamp: f64`
   - Add serde tags for JSON serialization
 
-- [ ] **Task 1.3.2**: Add `ConversationSnapshot` event (Design Doc §3.4)
+- [x] **Task 1.3.2**: Add `ConversationSnapshot` event (Design Doc §3.4)
   - Add `ConversationSnapshot` variant to `WebUIEvent` enum
   - Include fields: `worker_id: String`, `entries: Vec<ConversationEntryJson>`, `timestamp: f64`
 
-- [ ] **Task 1.3.3**: Add `Error` event (Design Doc §3.4)
+- [x] **Task 1.3.3**: Add `Error` event (Design Doc §3.4)
   - Add `Error` variant to `WebUIEvent` enum
   - Include fields: `command: String`, `message: String`, `timestamp: f64`
 
 ### 1.4 Command Handler Updates
 
-- [ ] **Task 1.4.1**: Update `handle_command` function signature (Design Doc §3.6)
+- [x] **Task 1.4.1**: Update `handle_command` function signature (Design Doc §3.6)
   - Add `os: &Arc<Os>` parameter for worker creation
   - Add `sender: &mut SplitSink<WebSocket, Message>` parameter for responses
   - Update match arms to handle new commands
 
-- [ ] **Task 1.4.2**: Implement `GetWorkers` command handler (Design Doc §3.6)
+- [x] **Task 1.4.2**: Implement `GetWorkers` command handler (Design Doc §3.6)
   - Call `session.get_workers()` to fetch all workers
   - Convert workers to `WorkerMetadataJson` (will be implemented in Phase 2)
   - Create `WorkersSnapshot` event and send via WebSocket
 
-- [ ] **Task 1.4.3**: Implement `GetConversationHistory` command handler (Design Doc §3.6)
+- [x] **Task 1.4.3**: Implement `GetConversationHistory` command handler (Design Doc §3.6)
   - Parse and validate worker_id
   - Fetch worker from session
   - Get conversation history from worker's context container
   - Convert to `ConversationEntryJson` (will be implemented in Phase 2)
   - Create `ConversationSnapshot` event and send via WebSocket
 
-- [ ] **Task 1.4.4**: Add error handling for invalid commands (Design Doc §3.7)
+- [x] **Task 1.4.4**: Add error handling for invalid commands (Design Doc §3.7)
   - Validate worker_id exists before processing commands
   - Send `Error` event if validation fails
   - Handle UUID parsing errors gracefully
@@ -106,63 +106,63 @@ This implementation plan transforms the basic WebUI (mvp-webui) into a practical
 
 ### 2.1 Create Serialization Module
 
-- [ ] **Task 2.1.1**: Create `serialization.rs` module (Design Doc §4.6)
+- [x] **Task 2.1.1**: Create `serialization.rs` module (Design Doc §4.6)
   - Create file `crates/chat-cli/src/cli/chat/web_server/serialization.rs`
   - Add module export to `mod.rs`
   - Import necessary types from agent_env and cli/chat
 
 ### 2.2 Define JSON Types
 
-- [ ] **Task 2.2.1**: Define `ConversationEntryJson` enum (Design Doc §4.3)
+- [x] **Task 2.2.1**: Define `ConversationEntryJson` enum (Design Doc §4.3)
   - Create enum with variants: `UserMessage`, `AssistantMessage`, `ToolUse`
   - Each variant includes: `content: String`, `timestamp: f64`
   - `ToolUse` additionally includes: `tool_uses: Vec<ToolUseJson>`
   - Add serde tags: `#[serde(tag = "type", rename_all = "snake_case")]`
 
-- [ ] **Task 2.2.2**: Define `ToolUseJson` struct (Design Doc §4.3)
+- [x] **Task 2.2.2**: Define `ToolUseJson` struct (Design Doc §4.3)
   - Create struct with fields: `tool_name: String`, `tool_input: serde_json::Value`
   - Add Serialize and Deserialize derives
 
-- [ ] **Task 2.2.3**: Define `WorkerMetadataJson` struct (Design Doc §4.3)
+- [x] **Task 2.2.3**: Define `WorkerMetadataJson` struct (Design Doc §4.3)
   - Create struct with fields: `id: String`, `name: String`, `agent: String`, `state: WorkerLifecycleState`, `current_job_id: Option<String>`
   - Add Serialize and Deserialize derives
 
 ### 2.3 Implement Conversion Functions
 
-- [ ] **Task 2.3.1**: Implement `convert_conversation_entry` function (Design Doc §4.4)
+- [x] **Task 2.3.1**: Implement `convert_conversation_entry` function (Design Doc §4.4)
   - Take `&ConversationEntry` as input, return `ConversationEntryJson`
   - Handle `user: Option<UserMessage>` case
   - Handle `assistant: Option<AssistantMessage>` case with Response and ToolUse variants
   - Handle empty entry case (shouldn't happen, but be defensive)
 
-- [ ] **Task 2.3.2**: Implement `extract_user_content` helper function (Design Doc §4.4)
+- [x] **Task 2.3.2**: Implement `extract_user_content` helper function (Design Doc §4.4)
   - Take `&UserMessage` as input, return `String`
   - Extract text from `UserMessageContent::Prompt`
   - Handle `CancelledToolUses` variant (return prompt or placeholder)
   - Handle `ToolUseResults` variant (return placeholder)
 
-- [ ] **Task 2.3.3**: Implement `convert_tool_use` helper function (Design Doc §4.4)
+- [x] **Task 2.3.3**: Implement `convert_tool_use` helper function (Design Doc §4.4)
   - Take `&AssistantToolUse` as input, return `ToolUseJson`
   - Extract tool_name and tool_input fields
 
-- [ ] **Task 2.3.4**: Implement `convert_worker_metadata` function (Design Doc §4.4)
+- [x] **Task 2.3.4**: Implement `convert_worker_metadata` function (Design Doc §4.4)
   - Take `&Worker` as input, return `WorkerMetadataJson`
   - Convert UUID to string
   - Extract lifecycle state from mutex
   - Extract current_job_id from mutex and convert to Option<String>
 
-- [ ] **Task 2.3.5**: Implement `current_unix_timestamp` helper function (Design Doc §4.4)
+- [x] **Task 2.3.5**: Implement `current_unix_timestamp` helper function (Design Doc §4.4)
   - Return current time as f64 (Unix timestamp)
   - Use `SystemTime::now().duration_since(UNIX_EPOCH)`
 
 ### 2.4 Handle Timestamp Edge Cases
 
-- [ ] **Task 2.4.1**: Use UserMessage timestamp if available (Design Doc §4.5)
+- [x] **Task 2.4.1**: Use UserMessage timestamp if available (Design Doc §4.5)
   - Check if `UserMessage.timestamp` is Some
   - Convert `DateTime<FixedOffset>` to Unix timestamp
   - Fall back to current time if None
 
-- [ ] **Task 2.4.2**: Document timestamp limitations (Design Doc §4.5)
+- [x] **Task 2.4.2**: Document timestamp limitations (Design Doc §4.5)
   - Add comment explaining approximate timestamps for assistant messages
   - Note that timestamps are not preserved across restarts
   - Suggest future improvement: add timestamp to ConversationEntry
@@ -199,21 +199,21 @@ This implementation plan transforms the basic WebUI (mvp-webui) into a practical
 
 ### 3.1 AppState Extension
 
-- [ ] **Task 3.1.1**: Add `Os` to `AppState` struct (Design Doc §5.2)
+- [x] **Task 3.1.1**: Add `Os` to `AppState` struct (Design Doc §5.2)
   - Modify `AppState` in `server.rs` to include `os: Arc<Os>`
   - Update all AppState construction sites
 
-- [ ] **Task 3.1.2**: Pass `Os` to `WebServer::new()` (Design Doc §5.7)
+- [x] **Task 3.1.2**: Pass `Os` to `WebServer::new()` (Design Doc §5.7)
   - Add `os: Arc<Os>` parameter to WebServer constructor
   - Store Os in AppState
 
-- [ ] **Task 3.1.3**: Wrap `Os` in `Arc` in `ChatArgs::execute()` (Design Doc §5.7)
+- [x] **Task 3.1.3**: Wrap `Os` in `Arc` in `ChatArgs::execute()` (Design Doc §5.7)
   - Change `os: Os` to `os: Arc<Os>` in execute method
   - Pass `os.clone()` to WebServer::new()
 
 ### 3.2 Worker Name Generation
 
-- [ ] **Task 3.2.1**: Implement `generate_worker_name` function (Design Doc §5.5)
+- [x] **Task 3.2.1**: Implement `generate_worker_name` function (Design Doc §5.5)
   - Take agent name and session as parameters
   - Count existing workers with same agent prefix
   - Return formatted name: `{agent}-{count+1}`
@@ -236,7 +236,7 @@ This implementation plan transforms the basic WebUI (mvp-webui) into a practical
 
 ### 3.4 CreateWorker Command Handler
 
-- [ ] **Task 3.4.1**: Implement `handle_create_worker` function (Design Doc §5.3)
+- [x] **Task 3.4.1**: Implement `handle_create_worker` function (Design Doc §5.3)
   - Take parameters: name, agent, working_directory, session, os
   - Generate worker name if not provided
   - Use WorkerBuilder to create worker with agent configuration
@@ -254,14 +254,14 @@ This implementation plan transforms the basic WebUI (mvp-webui) into a practical
   - Create Error event with timestamp
   - Serialize to JSON and send via WebSocket
 
-- [ ] **Task 3.4.4**: Integrate CreateWorker handler into command dispatcher (Design Doc §5.3)
+- [x] **Task 3.4.4**: Integrate CreateWorker handler into command dispatcher (Design Doc §5.3)
   - Add match arm for CreateWorker command
   - Call handle_create_worker_with_error
   - Note: WorkerCreated event is automatically published by Session
 
 ### 3.5 Working Directory Handling
 
-- [ ] **Task 3.5.1**: Store working_directory in task_metadata (Design Doc §5.6)
+- [x] **Task 3.5.1**: Store working_directory in task_metadata (Design Doc §5.6)
   - After worker creation, lock task_metadata mutex
   - Insert "working_directory" key with value
   - Document that this is for future use

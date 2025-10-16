@@ -272,6 +272,9 @@ impl ChatArgs {
         };
         use crate::cli::chat::agent_env_ui::{TextUi, StructuredIO};
         
+        // Wrap Os in Arc for sharing with WebServer
+        let os_arc = Arc::new(os.clone());
+        
         // Invert no_interactive flag for clearer logic
         let interactive = !self.no_interactive;
         
@@ -368,6 +371,7 @@ impl ChatArgs {
                 web_addr,
                 session.clone(),
                 web_ui,
+                os_arc.clone(),
             );
             
             let shutdown_signal = agent_env.shutdown_signal();

@@ -1,5 +1,6 @@
 mod api;
 mod events;
+mod serialization;
 mod server;
 mod web_ui;
 mod websocket;

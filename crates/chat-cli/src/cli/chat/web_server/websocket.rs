@@ -26,125 +26,142 @@ use super::{
 pub enum WebSocketCommand {
     /// Send a prompt to the worker
     Prompt {
+        worker_id: String,
         text: String,
     },
     /// Cancel the current job
-    Cancel,
+    Cancel {
+        worker_id: String,
+    },
+    /// Create a new worker
+    CreateWorker {
+        name: Option<String>,
+        agent: String,
+        working_directory: Option<String>,
+    },
+    /// Get all workers
+    GetWorkers,
+    /// Get conversation history for a worker
+    GetConversationHistory {
+        worker_id: String,
+    },
     /// Ping to keep connection alive
     Ping,
-}
-
-/// Worker state snapshot sent on connection
-#[derive(Debug, Serialize)]
-struct WorkerStateSnapshot {
-    #[serde(rename = "type")]
-    type_field: String,
-    worker_id: String,
-    name: String,
-    lifecycle_state: WebWorkerLifecycleState,
-    timestamp: f64,
 }
 
 impl WebSocketCommand {
     /// Validate the command
     pub fn validate(&self) -> Result<(), String> {
         match self {
-            WebSocketCommand::Prompt { text } => {
+            WebSocketCommand::Prompt { worker_id, text } => {
+                if worker_id.trim().is_empty() {
+                    return Err("Worker ID cannot be empty".to_string());
+                }
                 if text.trim().is_empty() {
                     return Err("Prompt text cannot be empty".to_string());
                 }
                 Ok(())
             }
-            WebSocketCommand::Cancel | WebSocketCommand::Ping => Ok(()),
+            WebSocketCommand::Cancel { worker_id } => {
+                if worker_id.trim().is_empty() {
+                    return Err("Worker ID cannot be empty".to_string());
+                }
+                Ok(())
+            }
+            WebSocketCommand::CreateWorker { agent, .. } => {
+                if agent.trim().is_empty() {
+                    return Err("Agent name cannot be empty".to_string());
+                }
+                Ok(())
+            }
+            WebSocketCommand::GetWorkers => Ok(()),
+            WebSocketCommand::GetConversationHistory { worker_id } => {
+                if worker_id.trim().is_empty() {
+                    return Err("Worker ID cannot be empty".to_string());
+                }
+                Ok(())
+            }
+            WebSocketCommand::Ping => Ok(()),
         }
     }
 }
 
 /// WebSocket upgrade handler
 pub async fn websocket_handler(
-    Path(worker_id): Path<String>,
     State(state): State<AppState>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    // Parse worker_id
-    let worker_id = match Uuid::parse_str(&worker_id) {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                axum::http::StatusCode::BAD_REQUEST,
-                axum::Json(ErrorResponse {
-                    error: "Invalid worker ID".to_string(),
-                }),
-            )
-                .into_response();
-        }
-    };
-
-    // Check if worker exists
-    if state.session.get_worker(worker_id).is_none() {
-        return (
-            axum::http::StatusCode::NOT_FOUND,
-            axum::Json(ErrorResponse {
-                error: "Worker not found".to_string(),
-            }),
-        )
-            .into_response();
-    }
-
-    // Upgrade to WebSocket
-    ws.on_upgrade(move |socket| handle_websocket(socket, worker_id, state))
+    // Upgrade to WebSocket (no worker validation needed)
+    ws.on_upgrade(move |socket| handle_websocket(socket, state))
         .into_response()
 }
 
 /// Handle WebSocket connection
-async fn handle_websocket(socket: WebSocket, worker_id: Uuid, state: AppState) {
+async fn handle_websocket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
 
     // Subscribe to events BEFORE sending snapshot to prevent race condition
     let mut event_rx = state.web_ui.subscribe();
 
-    // Send initial state snapshot
-    if let Err(e) = send_state_snapshot(&mut sender, worker_id, &state).await {
-        tracing::error!("Failed to send state snapshot for worker {}: {}", worker_id, e);
+    // Create channel for command responses
+    let (response_tx, mut response_rx) = tokio::sync::mpsc::unbounded_channel::<WebUIEvent>();
+
+    // Send initial snapshots (WorkersSnapshot, ConversationSnapshot for main worker)
+    if let Err(e) = send_initial_snapshots(&mut sender, &state).await {
+        tracing::error!("Failed to send initial snapshots: {}", e);
         return;
     }
 
-    tracing::info!("WebSocket connected for worker {}", worker_id);
+    tracing::info!("WebSocket connected (global connection)");
 
-    // Spawn task to forward events to WebSocket
+    // Spawn task to forward events and responses to WebSocket
     let send_task = {
-        let worker_id_str = worker_id.to_string();
         tokio::spawn(async move {
             loop {
-                match event_rx.recv().await {
-                    Ok(event) => {
-                        // Filter events for this worker
-                        if let Some(event_worker_id) = event.worker_id() {
-                            if event_worker_id != worker_id_str {
-                                continue;
+                tokio::select! {
+                    // Forward events from EventBus
+                    event_result = event_rx.recv() => {
+                        match event_result {
+                            Ok(event) => {
+                                // Send ALL events (no filtering by worker_id)
+                                // Frontend will handle routing to appropriate UI components
+
+                                // Serialize to JSON
+                                let json = match serde_json::to_string(&event) {
+                                    Ok(json) => json,
+                                    Err(e) => {
+                                        tracing::error!("Failed to serialize event: {}", e);
+                                        continue;
+                                    }
+                                };
+
+                                // Send to WebSocket
+                                if sender.send(Message::Text(json)).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                                tracing::warn!("WebSocket lagged by {} events", n);
+                                // Could send fresh snapshot here, but for MVP just log
+                            }
+                            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                                break;
                             }
                         }
-
-                        // Serialize to JSON
-                        let json = match serde_json::to_string(&event) {
+                    }
+                    // Forward command responses
+                    Some(response) = response_rx.recv() => {
+                        let json = match serde_json::to_string(&response) {
                             Ok(json) => json,
                             Err(e) => {
-                                tracing::error!("Failed to serialize event: {}", e);
+                                tracing::error!("Failed to serialize response: {}", e);
                                 continue;
                             }
                         };
 
-                        // Send to WebSocket
                         if sender.send(Message::Text(json)).await.is_err() {
                             break;
                         }
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        tracing::warn!("WebSocket lagged by {} events for worker {}", n, worker_id_str);
-                        // Could send fresh snapshot here, but for MVP just log
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                        break;
                     }
                 }
             }
@@ -156,8 +173,8 @@ async fn handle_websocket(socket: WebSocket, worker_id: Uuid, state: AppState) {
     let recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             if let Message::Text(text) = msg {
-                if let Err(e) = handle_command(&text, worker_id, &session).await {
-                    tracing::error!("Failed to handle command for worker {}: {}", worker_id, e);
+                if let Err(e) = handle_command(&text, &session, &response_tx).await {
+                    tracing::error!("Failed to handle command: {}", e);
                 }
             }
         }
@@ -166,60 +183,60 @@ async fn handle_websocket(socket: WebSocket, worker_id: Uuid, state: AppState) {
     // Wait for either task to complete
     tokio::select! {
         _ = send_task => {
-            tracing::info!("WebSocket send task completed for worker {}", worker_id);
+            tracing::info!("WebSocket send task completed");
         }
         _ = recv_task => {
-            tracing::info!("WebSocket receive task completed for worker {}", worker_id);
+            tracing::info!("WebSocket receive task completed");
         }
     }
 }
 
-/// Send initial state snapshot
-async fn send_state_snapshot(
-    sender: &mut futures::stream::SplitSink<WebSocket, Message>,
-    worker_id: Uuid,
-    state: &AppState,
-) -> Result<()> {
-    let worker = state
-        .session
-        .get_worker(worker_id)
-        .ok_or_else(|| eyre::eyre!("Worker not found"))?;
-
-    let lifecycle_state = *worker.lifecycle_state.lock().unwrap();
-
-    let snapshot = WorkerStateSnapshot {
-        type_field: "worker_state_snapshot".to_string(),
-        worker_id: worker_id.to_string(),
-        name: worker.name.clone(),
-        lifecycle_state: lifecycle_state.into(),
-        timestamp: SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64(),
-    };
-
-    let json = serde_json::to_string(&snapshot)?;
-    sender.send(Message::Text(json)).await?;
-
-    Ok(())
-}
 
 /// Handle incoming command
-async fn handle_command(text: &str, worker_id: Uuid, session: &Arc<Session>) -> Result<()> {
+async fn handle_command(
+    text: &str,
+    session: &Arc<Session>,
+    response_tx: &tokio::sync::mpsc::UnboundedSender<WebUIEvent>,
+) -> Result<()> {
     let command: WebSocketCommand = serde_json::from_str(text)?;
 
     // Validate command
     if let Err(e) = command.validate() {
-        tracing::warn!("Invalid command for worker {}: {}", worker_id, e);
+        tracing::warn!("Invalid command: {}", e);
         return Ok(()); // Don't fail, just log
     }
 
     match command {
-        WebSocketCommand::Prompt { text } => {
+        WebSocketCommand::Prompt { worker_id, text } => {
+            // Parse worker_id
+            let worker_uuid = match Uuid::parse_str(&worker_id) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    tracing::error!("Invalid worker ID format: {}", worker_id);
+                    let error_event = WebUIEvent::Error {
+                        command: "prompt".to_string(),
+                        message: "Invalid worker ID format".to_string(),
+                        timestamp: super::serialization::current_unix_timestamp(),
+                    };
+                    let _ = response_tx.send(error_event);
+                    return Ok(());
+                }
+            };
+
             // Get worker
-            let worker = session
-                .get_worker(worker_id)
-                .ok_or_else(|| eyre::eyre!("Worker not found"))?;
+            let worker = match session.get_worker(worker_uuid) {
+                Some(w) => w,
+                None => {
+                    tracing::error!("Worker not found: {}", worker_id);
+                    let error_event = WebUIEvent::Error {
+                        command: "prompt".to_string(),
+                        message: format!("Worker not found: {}", worker_id),
+                        timestamp: super::serialization::current_unix_timestamp(),
+                    };
+                    let _ = response_tx.send(error_event);
+                    return Ok(());
+                }
+            };
 
             // Add message to conversation history
             worker
@@ -231,21 +248,226 @@ async fn handle_command(text: &str, worker_id: Uuid, session: &Arc<Session>) -> 
 
             // Launch agent loop
             use crate::agent_env::worker_tasks::agent_loop::AgentLoopInput;
-            session.run_task__agent_loop(worker, AgentLoopInput {})?;
+            if let Err(e) = session.run_task__agent_loop(worker, AgentLoopInput {}) {
+                tracing::error!("Failed to start agent loop: {}", e);
+                let error_event = WebUIEvent::Error {
+                    command: "prompt".to_string(),
+                    message: format!("Failed to start agent loop: {}", e),
+                    timestamp: super::serialization::current_unix_timestamp(),
+                };
+                let _ = response_tx.send(error_event);
+                return Ok(());
+            }
 
-            tracing::info!("Started agent loop for worker {}", worker_id);
+            tracing::info!("Started agent loop for worker {}", worker_uuid);
         }
-        WebSocketCommand::Cancel => {
+        WebSocketCommand::Cancel { worker_id } => {
+            // Parse worker_id
+            let worker_uuid = match Uuid::parse_str(&worker_id) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    tracing::error!("Invalid worker ID format: {}", worker_id);
+                    let error_event = WebUIEvent::Error {
+                        command: "cancel".to_string(),
+                        message: "Invalid worker ID format".to_string(),
+                        timestamp: super::serialization::current_unix_timestamp(),
+                    };
+                    let _ = response_tx.send(error_event);
+                    return Ok(());
+                }
+            };
+
             // Cancel current job
-            session.cancel_worker_jobs(worker_id)?;
-            tracing::info!("Cancelled job for worker {}", worker_id);
+            if let Err(e) = session.cancel_worker_jobs(worker_uuid) {
+                tracing::error!("Failed to cancel job: {}", e);
+                let error_event = WebUIEvent::Error {
+                    command: "cancel".to_string(),
+                    message: format!("Failed to cancel job: {}", e),
+                    timestamp: super::serialization::current_unix_timestamp(),
+                };
+                let _ = response_tx.send(error_event);
+                return Ok(());
+            }
+            
+            tracing::info!("Cancelled job for worker {}", worker_uuid);
+        }
+        WebSocketCommand::CreateWorker { name, agent, working_directory } => {
+            tracing::info!("CreateWorker command received: name={:?}, agent={}, working_directory={:?}", 
+                name, agent, working_directory);
+            
+            // Generate worker name if not provided
+            let worker_name = name.unwrap_or_else(|| generate_worker_name(&agent, session));
+            
+            // Create worker using Session's build_worker (simplified for MVP)
+            // Note: For MVP, we're using the simple build_worker instead of WorkerBuilder
+            // to avoid complexity with agent loading. This can be enhanced later.
+            let worker = session.build_worker(worker_name.clone());
+            
+            // Store agent name and working directory in task_metadata for future use
+            {
+                let mut metadata = worker.task_metadata.lock().unwrap();
+                metadata.insert("agent".to_string(), serde_json::Value::String(agent.clone()));
+                if let Some(wd) = working_directory {
+                    metadata.insert("working_directory".to_string(), serde_json::Value::String(wd));
+                }
+            }
+            
+            tracing::info!("Created worker: {} with agent: {}", worker_name, agent);
+            // WorkerCreated event is automatically published by session.build_worker()
+        }
+        WebSocketCommand::GetWorkers => {
+            tracing::info!("GetWorkers command received");
+            
+            // Get all workers from session
+            let workers = session.get_workers();
+            
+            // Convert to WorkerMetadataJson
+            use super::serialization::{convert_worker_metadata, current_unix_timestamp};
+            let workers_metadata: Vec<_> = workers
+                .iter()
+                .map(|w| convert_worker_metadata(w))
+                .collect();
+            
+            // Create WorkersSnapshot event
+            let snapshot = WebUIEvent::WorkersSnapshot {
+                workers: workers_metadata,
+                timestamp: current_unix_timestamp(),
+            };
+            
+            // Send via response channel
+            if let Err(e) = response_tx.send(snapshot) {
+                tracing::error!("Failed to send WorkersSnapshot: {}", e);
+            }
+        }
+        WebSocketCommand::GetConversationHistory { worker_id } => {
+            tracing::info!("GetConversationHistory command received for worker {}", worker_id);
+            
+            // Parse worker_id
+            let worker_uuid = match Uuid::parse_str(&worker_id) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    tracing::error!("Invalid worker ID format: {}", worker_id);
+                    let error_event = WebUIEvent::Error {
+                        command: "get_conversation_history".to_string(),
+                        message: "Invalid worker ID format".to_string(),
+                        timestamp: super::serialization::current_unix_timestamp(),
+                    };
+                    let _ = response_tx.send(error_event);
+                    return Ok(());
+                }
+            };
+            
+            // Get worker from session
+            let worker = match session.get_worker(worker_uuid) {
+                Some(w) => w,
+                None => {
+                    tracing::error!("Worker not found: {}", worker_id);
+                    let error_event = WebUIEvent::Error {
+                        command: "get_conversation_history".to_string(),
+                        message: format!("Worker not found: {}", worker_id),
+                        timestamp: super::serialization::current_unix_timestamp(),
+                    };
+                    let _ = response_tx.send(error_event);
+                    return Ok(());
+                }
+            };
+            
+            // Get conversation history from worker's context container
+            let history = worker
+                .context_container
+                .conversation_history
+                .lock()
+                .unwrap();
+            
+            // Convert entries to ConversationEntryJson
+            use super::serialization::{convert_conversation_entry, current_unix_timestamp};
+            let entries: Vec<_> = history
+                .get_entries()
+                .iter()
+                .map(convert_conversation_entry)
+                .collect();
+            
+            // Create ConversationSnapshot event
+            let snapshot = WebUIEvent::ConversationSnapshot {
+                worker_id,
+                entries,
+                timestamp: current_unix_timestamp(),
+            };
+            
+            // Send via response channel
+            if let Err(e) = response_tx.send(snapshot) {
+                tracing::error!("Failed to send ConversationSnapshot: {}", e);
+            }
         }
         WebSocketCommand::Ping => {
             // No-op, just keep connection alive
-            tracing::debug!("Ping received for worker {}", worker_id);
+            tracing::debug!("Ping received");
         }
     }
 
+    Ok(())
+}
+
+/// Generate a unique worker name based on agent name and existing workers
+fn generate_worker_name(agent: &str, session: &Arc<Session>) -> String {
+    let workers = session.get_workers();
+    
+    // Count workers with same agent prefix
+    let count = workers.iter()
+        .filter(|w| w.name.starts_with(agent))
+        .count();
+    
+    format!("{}-{}", agent, count + 1)
+}
+
+/// Send initial snapshots on WebSocket connection
+async fn send_initial_snapshots(
+    sender: &mut futures::stream::SplitSink<WebSocket, Message>,
+    state: &AppState,
+) -> Result<()> {
+    use super::serialization::{convert_worker_metadata, convert_conversation_entry, current_unix_timestamp};
+    
+    // Send WorkersSnapshot
+    let workers = state.session.get_workers();
+    let workers_metadata: Vec<_> = workers
+        .iter()
+        .map(|w| convert_worker_metadata(w))
+        .collect();
+    
+    let workers_snapshot = WebUIEvent::WorkersSnapshot {
+        workers: workers_metadata,
+        timestamp: current_unix_timestamp(),
+    };
+    
+    let json = serde_json::to_string(&workers_snapshot)?;
+    sender.send(Message::Text(json)).await?;
+    
+    // Send ConversationSnapshot for main worker (if exists)
+    if let Some(main_worker) = workers.iter().find(|w| w.name == "main") {
+        let entries: Vec<_> = {
+            let history = main_worker
+                .context_container
+                .conversation_history
+                .lock()
+                .unwrap();
+            
+            history
+                .get_entries()
+                .iter()
+                .map(convert_conversation_entry)
+                .collect()
+        }; // history lock dropped here
+        
+        let conversation_snapshot = WebUIEvent::ConversationSnapshot {
+            worker_id: main_worker.id.to_string(),
+            entries,
+            timestamp: current_unix_timestamp(),
+        };
+        
+        let json = serde_json::to_string(&conversation_snapshot)?;
+        sender.send(Message::Text(json)).await?;
+    }
+    
     Ok(())
 }
 

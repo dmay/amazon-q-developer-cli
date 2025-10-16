@@ -7,6 +7,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 use crate::agent_env::session::Session;
+use crate::os::Os;
 
 use super::web_ui::WebUI;
 
@@ -15,6 +16,7 @@ use super::web_ui::WebUI;
 pub struct AppState {
     pub session: Arc<Session>,
     pub web_ui: Arc<WebUI>,
+    pub os: Arc<Os>,
 }
 
 /// Web server for serving WebUI
@@ -25,18 +27,18 @@ pub struct WebServer {
 
 impl WebServer {
     /// Create new web server
-    pub fn new(addr: SocketAddr, session: Arc<Session>, web_ui: Arc<WebUI>) -> Self {
+    pub fn new(addr: SocketAddr, session: Arc<Session>, web_ui: Arc<WebUI>, os: Arc<Os>) -> Self {
         Self {
             addr,
-            state: AppState { session, web_ui },
+            state: AppState { session, web_ui, os },
         }
     }
 
     /// Build router with all routes
     fn build_router(&self) -> Router {
         Router::new()
-            // WebSocket endpoint
-            .route("/ws/worker/:worker_id", get(super::websocket::websocket_handler))
+            // WebSocket endpoint (global, not per-worker)
+            .route("/ws", get(super::websocket::websocket_handler))
             // REST API endpoints
             .route("/api/health", get(super::api::health_check))
             .route("/api/workers", get(super::api::list_workers))

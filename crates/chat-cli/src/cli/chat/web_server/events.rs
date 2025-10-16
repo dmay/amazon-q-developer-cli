@@ -7,6 +7,8 @@ use crate::agent_env::events::{
     SystemEvent, UserInteractionRequired, WorkerEvent,
 };
 
+use super::serialization::{ConversationEntryJson, WorkerMetadataJson};
+
 // Global state for time conversion (initialized at process start)
 static PROCESS_START_INSTANT: OnceLock<Instant> = OnceLock::new();
 static PROCESS_START_SYSTEM_TIME: OnceLock<SystemTime> = OnceLock::new();
@@ -190,6 +192,24 @@ pub enum WebUIEvent {
         reason: String,
         timestamp: f64,
     },
+
+    // Snapshot Events (for initial state sync and queries)
+    WorkersSnapshot {
+        workers: Vec<WorkerMetadataJson>,
+        timestamp: f64,
+    },
+    ConversationSnapshot {
+        worker_id: String,
+        entries: Vec<ConversationEntryJson>,
+        timestamp: f64,
+    },
+
+    // Error Events
+    Error {
+        command: String,
+        message: String,
+        timestamp: f64,
+    },
 }
 
 impl WebUIEvent {
@@ -327,8 +347,11 @@ impl WebUIEvent {
             | Self::JobCompleted { worker_id, .. }
             | Self::OutputChunk { worker_id, .. }
             | Self::ResponseReceived { worker_id, .. }
-            | Self::ToolUseRequested { worker_id, .. } => Some(worker_id),
-            Self::ShutdownInitiated { .. } => None,
+            | Self::ToolUseRequested { worker_id, .. }
+            | Self::ConversationSnapshot { worker_id, .. } => Some(worker_id),
+            Self::ShutdownInitiated { .. }
+            | Self::WorkersSnapshot { .. }
+            | Self::Error { .. } => None,
         }
     }
 }
