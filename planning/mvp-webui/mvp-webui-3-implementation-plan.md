@@ -18,19 +18,19 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.1 Setup Module Structure
 
-- [ ] **Create web_server module directory** (Design Doc §5)
+- [x] **Create web_server module directory** (Design Doc §5)
   - Create `crates/chat-cli/src/cli/chat/web_server/` directory
   - Create `mod.rs` with module exports
   - Add module declaration to `crates/chat-cli/src/cli/chat/mod.rs`
 
-- [ ] **Create module files** (Design Doc §5)
+- [x] **Create module files** (Design Doc §5)
   - Create `events.rs` for WebUIEvent types
   - Create `web_ui.rs` for WebUI component
   - Create `server.rs` for WebServer implementation
   - Create `websocket.rs` for WebSocket handlers
   - Create `api.rs` for REST API handlers
 
-- [ ] **Add dependencies to Cargo.toml** (Design Doc §5)
+- [x] **Add dependencies to Cargo.toml** (Design Doc §5)
   - Add `axum = { version = "0.7", features = ["ws"] }`
   - Add `tower = "0.4"`
   - Add `tower-http = { version = "0.5", features = ["fs", "cors"] }`
@@ -38,39 +38,39 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.2 Implement WebUIEvent Types
 
-- [ ] **Define WorkerLifecycleState enum** (Design Doc §1)
+- [x] **Define WorkerLifecycleState enum** (Design Doc §1)
   - Create serializable enum with Idle, Busy, IdleFailed variants
   - Add serde attributes: `#[serde(rename_all = "snake_case")]`
   - Implement conversion from internal WorkerLifecycleState type
 
-- [ ] **Define JobResult enum** (Design Doc §1)
+- [x] **Define JobResult enum** (Design Doc §1)
   - Create Success, Cancelled, Failed variants with appropriate fields
   - Add serde tag attribute: `#[serde(tag = "status")]`
   - Implement conversion from internal JobCompletionResult type
 
-- [ ] **Define OutputChunkData enum** (Design Doc §1)
+- [x] **Define OutputChunkData enum** (Design Doc §1)
   - Create AssistantResponse, ToolUse, ToolResult variants
   - Add serde tag attribute: `#[serde(tag = "chunk_type")]`
   - Implement conversion from internal OutputChunk type
 
-- [ ] **Define WebUIEvent enum** (Design Doc §1)
+- [x] **Define WebUIEvent enum** (Design Doc §1)
   - Create all event variants: WorkerCreated, WorkerDeleted, WorkerStateChanged, JobStarted, JobCompleted, OutputChunk, ResponseReceived, ToolUseRequested, ShutdownInitiated
   - Add serde tag attribute: `#[serde(tag = "type", rename_all = "snake_case")]`
   - Use f64 for timestamps, String for IDs
 
-- [ ] **Implement time conversion utilities** (Design Doc §1)
+- [x] **Implement time conversion utilities** (Design Doc §1)
   - Create global OnceLock for PROCESS_START_INSTANT and PROCESS_START_SYSTEM_TIME
   - Implement `init_time_conversion()` function
   - Implement `instant_to_unix_timestamp()` function
   - Add documentation explaining Instant to SystemTime conversion
 
-- [ ] **Implement WebUIEvent::from_agent_event()** (Design Doc §1)
+- [x] **Implement WebUIEvent::from_agent_event()** (Design Doc §1)
   - Implement conversion from AgentEnvironmentEvent
   - Handle Worker, Job, AgentLoop, System event types
   - Convert Instant to f64 timestamps
   - Convert Uuid to String
 
-- [ ] **Add helper types** (Design Doc §1)
+- [x] **Add helper types** (Design Doc §1)
   - Create WorkerStateSnapshot struct for initial state
   - Create CurrentJobInfo struct for job details
   - Create ConversationSummary struct (optional for MVP)
