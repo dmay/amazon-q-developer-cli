@@ -35,8 +35,8 @@ impl WebServer {
     /// Build router with all routes
     fn build_router(&self) -> Router {
         Router::new()
-            // WebSocket endpoint (placeholder for Phase 2)
-            // .route("/ws/worker/:worker_id", get(super::websocket::websocket_handler))
+            // WebSocket endpoint
+            .route("/ws/worker/:worker_id", get(super::websocket::websocket_handler))
             // REST API endpoints
             .route("/api/health", get(super::api::health_check))
             .route("/api/workers", get(super::api::list_workers))

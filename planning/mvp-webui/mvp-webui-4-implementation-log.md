@@ -102,10 +102,94 @@ All tasks in Phase 1 (Backend Infrastructure) are complete. The backend foundati
 - REST API handlers (health, list_workers, get_worker)
 - Static file serving
 
-**Next Steps:**
-- Proceed to Phase 2: WebSocket Protocol Implementation
-
 **Notes:**
 - Simplified REST API to not include current_job information (Worker doesn't track active jobs yet)
 - This is acceptable for MVP - can be added later when implementing WebSocket protocol
 - All builds successful, no compilation errors
+
+---
+
+### Phase 2: WebSocket Protocol Implementation
+
+#### Session 2: 2025-10-15
+
+**Tasks Completed:**
+- ✅ Task 2.1: Define WebSocket Message Types
+  - Created websocket.rs module
+  - Implemented WebSocketCommand enum with Prompt, Cancel, Ping variants
+  - Added serde tag attribute for clean JSON format
+  - Implemented validate() method for command validation
+  - Added comprehensive unit tests (7 tests, all passing)
+  - Verified build successful
+
+- ✅ Task 2.2: Implement State Snapshot Generation
+  - Implemented WorkerStateSnapshot struct for initial state
+  - Implemented send_state_snapshot() function
+  - Queries worker from session
+  - Includes worker_id, name, lifecycle_state, timestamp
+  - Serializes to JSON and sends via WebSocket
+  - Handles errors gracefully with logging
+
+- ✅ Task 2.3: Implement WebSocket Handler
+  - Implemented websocket_handler() function for WebSocket upgrade
+  - Validates worker_id from path parameter
+  - Returns 400 for invalid UUID format
+  - Returns 404 if worker not found
+  - Upgrades to WebSocket connection
+  - Implemented handle_websocket() function
+  - Splits WebSocket into sender and receiver
+  - Subscribes to WebUI events BEFORE sending snapshot (prevents race condition)
+  - Sends initial state snapshot
+  - Spawns event streaming task
+  - Spawns command handling task
+  - Uses tokio::select! to wait for either task completion
+  - Logs connection and disconnection events
+
+- ✅ Task 2.4: Implement Command Handling
+  - Implemented handle_command() function
+  - Validates commands before execution
+  - Handles Prompt command:
+    - Gets worker from session
+    - Adds message to conversation history
+    - Launches agent loop via session.run_task__agent_loop()
+    - Logs command execution
+  - Handles Cancel command:
+    - Calls session.cancel_worker_jobs(worker_id)
+    - Logs cancellation
+  - Handles Ping command:
+    - No-op, just logs for debugging
+  - Returns Result for error handling
+
+- ✅ Task 2.5: Implement Connection Lifecycle
+  - Added connection logging (connection established, worker_id)
+  - Added disconnection logging
+  - Event streaming task handles RecvError::Lagged with warning log
+  - Event streaming task breaks on send error (connection closed)
+  - Command handling task breaks on connection close
+  - tokio::select! ensures responsive shutdown
+
+- ✅ Task 2.6: Add WebSocket Route to Router
+  - Added route to WebServer::build_router()
+  - Route: GET /ws/worker/:worker_id
+  - Handler: websocket_handler
+  - Verified build successful
+
+**Phase 2 Status: COMPLETE ✅**
+
+All tasks in Phase 2 (WebSocket Protocol Implementation) are complete. The WebSocket protocol is fully functional:
+- WebSocket message types (commands and snapshots)
+- State snapshot generation on connection
+- WebSocket handler with upgrade and connection management
+- Command handling (Prompt, Cancel, Ping)
+- Connection lifecycle management
+- Event streaming with filtering by worker_id
+- WebSocket route added to router
+
+**Next Steps:**
+- Proceed to Phase 3: Frontend Implementation
+
+**Notes:**
+- Made instant_to_unix_timestamp public in events.rs for use in websocket.rs
+- Made ErrorResponse.error field public for use in websocket.rs
+- Event filtering compares string worker_id (from event) with Uuid worker_id (converted to string)
+- All builds successful, all tests passing (7 tests)

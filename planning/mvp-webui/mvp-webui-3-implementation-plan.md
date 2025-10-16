@@ -187,19 +187,19 @@ This phase implements the WebSocket protocol for real-time communication between
 
 ### 2.1 Define WebSocket Message Types
 
-- [ ] **Define WebSocketCommand enum** (Design Doc §2)
+- [x] **Define WebSocketCommand enum** (Design Doc §2)
   - Create Prompt, Cancel, Ping variants
   - Add serde tag attribute: `#[serde(tag = "type", rename_all = "snake_case")]`
   - Add Deserialize derive for parsing client messages
 
-- [ ] **Add command validation** (Design Doc §2)
+- [x] **Add command validation** (Design Doc §2)
   - Validate prompt text is not empty
   - Document command format in code comments
   - Add examples in documentation
 
 ### 2.2 Implement State Snapshot Generation
 
-- [ ] **Implement send_state_snapshot() function** (Design Doc §2, §6)
+- [x] **Implement send_state_snapshot() function** (Design Doc §2, §6)
   - Accept sender, worker_id, and AppState parameters
   - Query worker from session
   - Create WorkerStateSnapshot with current state
@@ -207,19 +207,19 @@ This phase implements the WebSocket protocol for real-time communication between
   - Serialize to JSON and send via WebSocket
   - Handle errors gracefully with logging
 
-- [ ] **Add worker existence check** (Design Doc §2)
+- [x] **Add worker existence check** (Design Doc §2)
   - Verify worker exists before sending snapshot
   - Return appropriate error if worker not found
   - Log worker_id for debugging
 
-- [ ] **Handle current job information** (Design Doc §6)
+- [x] **Handle current job information** (Design Doc §6)
   - Check if worker has active job
   - Include job_id, task_type, started_at if present
   - Convert Instant to timestamp for started_at
 
 ### 2.3 Implement WebSocket Handler
 
-- [ ] **Implement websocket_handler() function** (Design Doc §2)
+- [x] **Implement websocket_handler() function** (Design Doc §2)
   - Extract worker_id from path parameter
   - Parse Uuid, return 400 on invalid format
   - Extract AppState from request state
@@ -227,7 +227,7 @@ This phase implements the WebSocket protocol for real-time communication between
   - Upgrade to WebSocket connection
   - Call handle_websocket() on upgrade
 
-- [ ] **Implement handle_websocket() function** (Design Doc §2, §6)
+- [x] **Implement handle_websocket() function** (Design Doc §2, §6)
   - Split WebSocket into sender and receiver
   - Subscribe to WebUI events BEFORE sending snapshot (prevent race)
   - Send initial state snapshot
@@ -235,7 +235,7 @@ This phase implements the WebSocket protocol for real-time communication between
   - Spawn command handling task
   - Use tokio::select! to wait for either task or shutdown
 
-- [ ] **Implement event streaming task** (Design Doc §2, §6)
+- [x] **Implement event streaming task** (Design Doc §2, §6)
   - Loop on event_rx.recv()
   - Filter events by worker_id
   - Convert AgentEnvironmentEvent to WebUIEvent (already done by WebUI)
@@ -244,7 +244,7 @@ This phase implements the WebSocket protocol for real-time communication between
   - Break on send error (connection closed)
   - Handle RecvError::Lagged by sending fresh snapshot
 
-- [ ] **Implement command handling task** (Design Doc §2)
+- [x] **Implement command handling task** (Design Doc §2)
   - Loop on receiver.next()
   - Parse JSON to WebSocketCommand
   - Call handle_command() for each command
@@ -253,47 +253,47 @@ This phase implements the WebSocket protocol for real-time communication between
 
 ### 2.4 Implement Command Handling
 
-- [ ] **Implement handle_command() function** (Design Doc §2)
+- [x] **Implement handle_command() function** (Design Doc §2)
   - Accept command, worker_id, and session parameters
   - Match on WebSocketCommand variants
   - Return Result for error handling
 
-- [ ] **Handle Prompt command** (Design Doc §2)
+- [x] **Handle Prompt command** (Design Doc §2)
   - Get worker from session
   - Add message to conversation history
   - Launch agent loop via session.run_task__agent_loop()
   - Log command execution
 
-- [ ] **Handle Cancel command** (Design Doc §2)
+- [x] **Handle Cancel command** (Design Doc §2)
   - Call session.cancel_worker_job(worker_id)
   - Log cancellation
   - Handle errors if no job is running
 
-- [ ] **Handle Ping command** (Design Doc §2)
+- [x] **Handle Ping command** (Design Doc §2)
   - No-op, just keep connection alive
   - Optionally log ping for debugging
 
 ### 2.5 Implement Connection Lifecycle
 
-- [ ] **Add connection logging** (Design Doc §2)
+- [x] **Add connection logging** (Design Doc §2)
   - Log WebSocket connection established
   - Log worker_id for each connection
   - Log disconnection with reason
 
-- [ ] **Implement graceful closure** (Design Doc §8)
+- [x] **Implement graceful closure** (Design Doc §8)
   - Send ShutdownInitiated event before closing
   - Send WebSocket close frame
   - Clean up resources
   - Log shutdown completion
 
-- [ ] **Handle abnormal closure** (Design Doc §2)
+- [x] **Handle abnormal closure** (Design Doc §2)
   - Detect connection errors
   - Log error details
   - Clean up resources properly
 
 ### 2.6 Add WebSocket Route to Router
 
-- [ ] **Add WebSocket route** (Design Doc §2, §5)
+- [x] **Add WebSocket route** (Design Doc §2, §5)
   - Add route to WebServer::build_router()
   - Route: GET /ws/worker/:worker_id
   - Handler: websocket_handler

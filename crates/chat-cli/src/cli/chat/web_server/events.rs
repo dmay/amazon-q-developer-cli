@@ -24,7 +24,7 @@ pub fn init_time_conversion() {
 ///
 /// Note: Instant is monotonic and doesn't have a fixed epoch.
 /// We track the relationship between Instant and SystemTime at process start.
-fn instant_to_unix_timestamp(instant: Instant) -> f64 {
+pub fn instant_to_unix_timestamp(instant: Instant) -> f64 {
     let start_instant = PROCESS_START_INSTANT
         .get()
         .expect("init_time_conversion() must be called at startup");

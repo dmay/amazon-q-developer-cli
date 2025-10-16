@@ -2,6 +2,7 @@ mod api;
 mod events;
 mod server;
 mod web_ui;
+mod websocket;
 
 pub use events::{init_time_conversion, WebUIEvent};
 pub use server::{AppState, WebServer};

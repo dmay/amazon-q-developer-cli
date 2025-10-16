@@ -93,5 +93,5 @@ struct WorkerDetailResponse {
 
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    error: String,
+    pub error: String,
 }
