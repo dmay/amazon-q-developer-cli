@@ -908,6 +908,41 @@ And use command templates exactly as provided, no modifications!
 
 ----
 
+# MVP - Iteration: Corrections
+
+Look at the following files for a reference:
+- codebase/agent-environment/README.md - documentation about the architecture that we are working on (read linked files, and other files in that folder as needed). Provides reasonable amount of context.
+- codebase/chat-cli/files-index.md - the list of some important files we are working with 
+- crates/chat-cli/src/agent_env - current implementation of the new architecture
+- crates/chat-cli/src/cli/chat/agent_env_ui - UI implementation for the new architecture
+- crates/chat-cli/src/cli/chat/mod.rs (up to line 309) - entry point for the new architecture
+
+Read the following files - the task context:
+- planning/mvp/mvp-4-dmay-plan.md - primary plan sheet
+
+**Your goal** is to proceed with the corrections for the next available workflow that has open issues:
+- Identify workflow to work on
+- Read its scope, research, design, and plan documents
+- Check if the log implementation document had been created
+- Read the issues doc
+- Proceed with researching and resolving the issues
+
+**Issue process**
+- Identify next open issue in the issues doc
+- Identify the affected elements
+- Think wbout how to resolve the issue
+- If necessary - create a check list to solve this isse step by step
+- Proceed with necessary changes
+- Mark the issue as resolved in the issues doc - just update `[ ]` to `[x]`, do not modify the issue itself.
+- Append research and resolution information to the issue section
+
+**IMPORTANT** Refer to "# How to build the Q-CLI project" when you need to do `cargo check`
+**IMPORTANT** Refer to "## Test process" in the same section when you need to do `cargo test`
+**IMPORTANT** Refer to "## Build analysys process - using simple sub-agent" instructions to analyze results
+And use command templates exactly as provided, no modifications!
+
+----
+
 # MVP - Iteration: re-scoping
 
 Look at the following files for a reference:

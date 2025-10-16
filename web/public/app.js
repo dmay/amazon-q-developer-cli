@@ -235,6 +235,7 @@ class ConversationView {
             case 'user_message': return 'bubble-user';
             case 'assistant_message': return 'bubble-assistant';
             case 'tool_use': return 'bubble-tool';
+            case 'error': return 'bubble-error';
             default: return 'bubble-default';
         }
     }
@@ -308,6 +309,15 @@ class InputArea {
             alert('Please select a worker');
             return;
         }
+        
+        // Add user message to conversation immediately
+        const userEntry = {
+            type: 'user_message',
+            content: text,
+            timestamp: Date.now() / 1000,
+        };
+        this.app.state.appendConversationEntry(workerId, userEntry);
+        this.app.components.conversationView.appendEntry(userEntry);
         
         this.app.ws.send({
             type: 'prompt',
@@ -640,6 +650,20 @@ class WebUIApp {
             worker.currentJobId = null;
         }
         this.accumulator.finalize(event.worker_id);
+        
+        // Display error message if job failed
+        if (event.result.status === 'failed') {
+            const errorEntry = {
+                type: 'error',
+                content: event.result.error,
+                timestamp: event.timestamp,
+            };
+            this.state.appendConversationEntry(event.worker_id, errorEntry);
+            if (event.worker_id === this.state.selectedWorkerId) {
+                this.components.conversationView.appendEntry(errorEntry);
+            }
+        }
+        
         this.components.inputArea.updateState();
     }
     

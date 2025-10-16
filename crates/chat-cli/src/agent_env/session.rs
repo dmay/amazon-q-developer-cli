@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 use uuid::Uuid;
 
 use super::worker::Worker;
@@ -20,6 +21,7 @@ pub struct Session {
     model_providers: Vec<Arc<dyn ModelProvider>>,
     workers: Arc<Mutex<Vec<Arc<Worker>>>>,
     jobs: Arc<Mutex<Vec<Arc<WorkerJob>>>>,
+    os: Option<Arc<crate::os::Os>>,
 }
 
 impl Session {
@@ -29,7 +31,13 @@ impl Session {
             model_providers,
             workers: Arc::new(Mutex::new(Vec::new())),
             jobs: Arc::new(Mutex::new(Vec::new())),
+            os: None,
         }
+    }
+    
+    pub fn with_os(mut self, os: Arc<crate::os::Os>) -> Self {
+        self.os = Some(os);
+        self
     }
 
     pub fn event_bus(&self) -> &EventBus {
@@ -45,6 +53,11 @@ impl Session {
             name.clone(),
             model_provider,
         ));
+        
+        // Set Os if available
+        if let Some(os) = &self.os {
+            worker.set_os(os.clone());
+        }
         
         self.workers.lock().unwrap().push(worker.clone());
         
@@ -116,13 +129,21 @@ impl Session {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
             
-            // Get completion state
-            let state = job_for_completion.get_state().await;
-            let result = match state {
-                super::worker_job::JobState::Completed => Ok(()),
-                super::worker_job::JobState::Failed => Err(eyre::eyre!("Job failed")),
-                super::worker_job::JobState::Cancelled => Err(eyre::eyre!("Job cancelled")),
-                _ => Ok(()),
+            // Get completion state with error details
+            let continuations_state = job_for_completion.worker_job_continuations.get_state().await;
+            let result = match continuations_state {
+                super::worker_job_continuations::JobState::Running => Ok(()),
+                super::worker_job_continuations::JobState::Done(completion_type, error_msg) => {
+                    match completion_type {
+                        super::worker_job_continuations::WorkerJobCompletionType::Normal => Ok(()),
+                        super::worker_job_continuations::WorkerJobCompletionType::Failed => {
+                            Err(eyre::eyre!(error_msg.unwrap_or_else(|| "Job failed with unknown error".to_string())))
+                        },
+                        super::worker_job_continuations::WorkerJobCompletionType::Cancelled => {
+                            Err(eyre::eyre!("Job cancelled"))
+                        },
+                    }
+                }
             };
             
             // Task 3.1.3: Handle job completion
@@ -166,9 +187,16 @@ impl Session {
                     user_interaction_required,
                 }
             }
-            Err(e) => JobCompletionResult::Failed {
-                error: e.to_string(),
-            },
+            Err(e) => {
+                error!(
+                    worker_id = %worker_id,
+                    error = %e,
+                    "Job failed for worker"
+                );
+                JobCompletionResult::Failed {
+                    error: e.to_string(),
+                }
+            }
         };
         
         // Update worker lifecycle state

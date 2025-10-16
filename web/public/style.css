@@ -179,7 +179,8 @@ body {
 
 .bubble-assistant {
     align-self: flex-start;
-    background-color: #f1f8e9;
+    max-width: 100%;
+    background-color: transparent;
     border: 1px solid #aed581;
     color: #33691e;
 }
@@ -189,6 +190,13 @@ body {
     background-color: #fff3e0;
     border: 1px solid #ffb74d;
     color: #e65100;
+}
+
+.bubble-error {
+    align-self: flex-start;
+    background-color: #ffebee;
+    border: 1px solid #ef5350;
+    color: #c62828;
 }
 
 .bubble-default {

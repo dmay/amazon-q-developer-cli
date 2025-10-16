@@ -289,7 +289,7 @@ impl ChatArgs {
         let model_provider = Self::create_model_provider(platform, os).await?;
         let model_providers = vec![model_provider];
         
-        let session = Arc::new(Session::new(event_bus.clone(), model_providers));
+        let session = Arc::new(Session::new(event_bus.clone(), model_providers).with_os(os_arc.clone()));
         
         // Task 9.3.2: Select UI based on ui_mode and create UI BEFORE worker for StructuredIO
         let ui_mode = self.ui_mode.unwrap_or(UiMode::Text);
