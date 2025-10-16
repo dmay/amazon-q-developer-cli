@@ -82,11 +82,12 @@
 ### 5. mvp-webui
 - [x] Analyzed
 - [x] Designed
-- [ ] Planned
+- [x] Planned
 - [ ] Implemented
-  - [ ] Phase 1: Design web architecture
-  - [ ] Phase 2: Implement backend (web server, WebSocket)
-  - [ ] Phase 3: Implement frontend (UI, event handling)
+  - [ ] Phase 1: Backend Infrastructure (28 tasks)
+  - [ ] Phase 2: WebSocket Protocol (19 tasks)
+  - [ ] Phase 3: Frontend Implementation (43 tasks)
+  - [ ] Phase 4: Integration & Testing (38 tasks)
 
 **Files:**
 - Scope: `planning/mvp-webui/mvp-webui-0-scope.md`
