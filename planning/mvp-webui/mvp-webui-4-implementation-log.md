@@ -63,11 +63,27 @@ This document tracks the implementation progress of the WebUI feature for the Q 
   - Implemented WebServer::run_with_shutdown() with graceful shutdown (5-second timeout)
   - Verified build successful
 
-- ✅ Task 1.5: Implement REST API Handlers (Skeleton)
+- ✅ Task 1.5: Implement REST API Handlers
   - Created api.rs module
   - Implemented health_check handler returning JSON with status and version
-  - Added route to router: GET /api/health
-  - Added api module to mod.rs
+  - Implemented list_workers handler:
+    - Extracts AppState from request
+    - Queries session.get_workers()
+    - Converts to WorkersResponse with WorkerInfo structs
+    - Returns JSON response
+  - Implemented get_worker handler:
+    - Extracts worker_id from path parameter
+    - Parses Uuid, returns 400 on invalid format
+    - Queries session.get_worker(), returns 404 if not found
+    - Converts to WorkerDetailResponse
+    - Returns JSON response
+  - Defined response types:
+    - WorkersResponse struct
+    - WorkerInfo struct
+    - WorkerDetailResponse struct
+    - ErrorResponse struct (public)
+  - Added routes to router: GET /api/health, GET /api/workers, GET /api/workers/:id
+  - Note: Simplified API to not include current_job field (Worker doesn't track this yet, will add in Phase 2)
   - Verified build successful
 
 - ✅ Task 1.6: Add Static File Serving
@@ -77,12 +93,19 @@ This document tracks the implementation progress of the WebUI feature for the Q 
   - Route: nest_service("/", ServeDir::new("web/public"))
   - Verified build successful
 
+**Phase 1 Status: COMPLETE ✅**
+
+All tasks in Phase 1 (Backend Infrastructure) are complete. The backend foundation is ready:
+- WebUIEvent types with serialization
+- WebUI component implementing HeadlessInterface
+- WebServer with Axum
+- REST API handlers (health, list_workers, get_worker)
+- Static file serving
+
 **Next Steps:**
-- Task 1.5 (remaining): Implement list_workers and get_worker handlers
-- Or proceed to Phase 2: WebSocket Protocol Implementation
+- Proceed to Phase 2: WebSocket Protocol Implementation
 
 **Notes:**
-- Phase 1 core infrastructure is complete
-- WebServer can start and serve static files
-- Health check endpoint is functional
-- Ready to proceed with WebSocket implementation or complete remaining REST API handlers
+- Simplified REST API to not include current_job information (Worker doesn't track active jobs yet)
+- This is acceptable for MVP - can be added later when implementing WebSocket protocol
+- All builds successful, no compilation errors

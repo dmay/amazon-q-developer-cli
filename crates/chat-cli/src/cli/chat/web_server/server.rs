@@ -37,10 +37,10 @@ impl WebServer {
         Router::new()
             // WebSocket endpoint (placeholder for Phase 2)
             // .route("/ws/worker/:worker_id", get(super::websocket::websocket_handler))
-            // REST API endpoints (placeholder for Phase 1.5)
+            // REST API endpoints
             .route("/api/health", get(super::api::health_check))
-            // .route("/api/workers", get(super::api::list_workers))
-            // .route("/api/workers/:id", get(super::api::get_worker))
+            .route("/api/workers", get(super::api::list_workers))
+            .route("/api/workers/:id", get(super::api::get_worker))
             // Static file serving (frontend)
             .nest_service("/", ServeDir::new("web/public"))
             // CORS for development

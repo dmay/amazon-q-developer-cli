@@ -144,25 +144,26 @@ This phase establishes the core backend components: serializable event types, We
   - Use env!("CARGO_PKG_VERSION") for version
   - Add route to router: GET /api/health
 
-- [ ] **Implement list_workers handler** (Design Doc §3)
+- [x] **Implement list_workers handler** (Design Doc §3)
   - Extract AppState from request
-  - Query session.list_workers()
+  - Query session.get_workers()
   - Convert to WorkersResponse with WorkerInfo structs
   - Return JSON response
 
-- [ ] **Implement get_worker handler** (Design Doc §3)
+- [x] **Implement get_worker handler** (Design Doc §3)
   - Extract worker_id from path parameter
   - Parse Uuid, return 400 on invalid format
   - Query session.get_worker(), return 404 if not found
   - Convert to WorkerDetailResponse
   - Return JSON response
 
-- [ ] **Define response types** (Design Doc §3)
+- [x] **Define response types** (Design Doc §3)
   - Create WorkersResponse struct
   - Create WorkerInfo struct
   - Create WorkerDetailResponse struct
   - Create ErrorResponse struct
   - Add serde derives
+  - Return JSON response
 
 ### 1.6 Add Static File Serving
 
