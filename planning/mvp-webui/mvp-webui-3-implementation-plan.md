@@ -78,25 +78,25 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.3 Implement WebUI Component
 
-- [ ] **Define WebUI struct** (Design Doc §4)
+- [x] **Define WebUI struct** (Design Doc §4)
   - Add session: Arc<Session> field
   - Add event_tx: broadcast::Sender<WebUIEvent> field
   - Create with buffer size of 10,000 events
 
-- [ ] **Implement WebUI::new()** (Design Doc §4)
+- [x] **Implement WebUI::new()** (Design Doc §4)
   - Create broadcast channel with large buffer
   - Store session reference
   - Return WebUI instance
 
-- [ ] **Implement WebUI::subscribe()** (Design Doc §4)
+- [x] **Implement WebUI::subscribe()** (Design Doc §4)
   - Return broadcast::Receiver<WebUIEvent> for WebSocket handlers
   - Document usage pattern
 
-- [ ] **Implement WebUI::session()** (Design Doc §4)
+- [x] **Implement WebUI::session()** (Design Doc §4)
   - Return reference to Arc<Session>
   - Provide access for WebSocket handlers to query state
 
-- [ ] **Implement HeadlessInterface for WebUI** (Design Doc §4)
+- [x] **Implement HeadlessInterface for WebUI** (Design Doc §4)
   - Implement async handle_event() method
   - Convert AgentEnvironmentEvent to WebUIEvent
   - Broadcast to all subscribers via event_tx
@@ -104,34 +104,34 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.4 Implement AppState and WebServer Structure
 
-- [ ] **Define AppState struct** (Design Doc §5)
+- [x] **Define AppState struct** (Design Doc §5)
   - Add session: Arc<Session> field
   - Add web_ui: Arc<WebUI> field
   - Derive Clone for use with Axum extractors
 
-- [ ] **Define WebServer struct** (Design Doc §5)
+- [x] **Define WebServer struct** (Design Doc §5)
   - Add addr: SocketAddr field
   - Add state: AppState field
   - Document purpose and lifecycle
 
-- [ ] **Implement WebServer::new()** (Design Doc §5)
+- [x] **Implement WebServer::new()** (Design Doc §5)
   - Accept addr, session, web_ui parameters
   - Create AppState
   - Return WebServer instance
 
-- [ ] **Implement WebServer::build_router()** (Design Doc §5)
+- [x] **Implement WebServer::build_router()** (Design Doc §5)
   - Create Axum Router
   - Add placeholder routes (will be implemented in later phases)
   - Add CORS layer with permissive settings for development
   - Add state with with_state()
 
-- [ ] **Implement WebServer::run()** (Design Doc §5)
+- [x] **Implement WebServer::run()** (Design Doc §5)
   - Build router
   - Create TcpListener on addr
   - Start axum::serve()
   - Log server address on startup
 
-- [ ] **Implement WebServer::run_with_shutdown()** (Design Doc §5, §8)
+- [x] **Implement WebServer::run_with_shutdown()** (Design Doc §5, §8)
   - Accept shutdown_signal: Arc<Notify> parameter
   - Build router and listener
   - Use with_graceful_shutdown() with 5-second timeout
@@ -139,7 +139,7 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.5 Implement REST API Handlers (Skeleton)
 
-- [ ] **Implement health_check handler** (Design Doc §3)
+- [x] **Implement health_check handler** (Design Doc §3)
   - Return JSON with status: "ok" and version
   - Use env!("CARGO_PKG_VERSION") for version
   - Add route to router: GET /api/health
@@ -166,12 +166,12 @@ This phase establishes the core backend components: serializable event types, We
 
 ### 1.6 Add Static File Serving
 
-- [ ] **Create web/public directory** (Design Doc §5)
+- [x] **Create web/public directory** (Design Doc §5)
   - Create directory structure: web/public/
   - Add placeholder index.html (will be implemented in Phase 3)
   - Document directory purpose
 
-- [ ] **Add static file route** (Design Doc §5)
+- [x] **Add static file route** (Design Doc §5)
   - Use tower_http::services::ServeDir
   - Add route: nest_service("/", ServeDir::new("web/public"))
   - Test that static files are served correctly
