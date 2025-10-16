@@ -84,9 +84,9 @@
 - [x] Designed
 - [x] Planned
 - [ ] Implemented
-  - [ ] Phase 1: Backend Infrastructure (28 tasks)
-  - [ ] Phase 2: WebSocket Protocol (19 tasks)
-  - [ ] Phase 3: Frontend Implementation (43 tasks)
+  - [x] Phase 1: Backend Infrastructure (28 tasks)
+  - [x] Phase 2: WebSocket Protocol (19 tasks)
+  - [x] Phase 3: Frontend Implementation (43 tasks)
   - [ ] Phase 4: Integration & Testing (38 tasks)
 
 **Files:**
@@ -95,6 +95,22 @@
 - Design: `planning/mvp-webui/mvp-webui-2-design.md`
 - Plan: `planning/mvp-webui/mvp-webui-3-implementation-plan.md`
 - Log: `planning/mvp-webui/mvp-webui-4-implementation-log.md`
+
+---
+
+### 5.1 mvp-webui-plus
+- [ ] Re-scope, create a proper scope document from the rough idea in the scope file
+- [ ] Analyzed
+- [ ] Designed
+- [ ] Planned
+- [ ] Implemented
+
+**Files:**
+- Scope: `planning/mvp-webui-plus/mvp-webui-plus-0-scope.md`
+- Research: `planning/mvp-webui-plus/mvp-webui-plus-1-research.md`
+- Design: `planning/mvp-webui-plus/mvp-webui-plus-2-design.md`
+- Plan: `planning/mvp-webui-plus/mvp-webui-plus-3-implementation-plan.md`
+- Log: `planning/mvp-webui-plus/mvp-webui-plus-4-implementation-log.md`
 
 ---
 
