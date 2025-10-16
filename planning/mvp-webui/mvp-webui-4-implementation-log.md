@@ -193,3 +193,125 @@ All tasks in Phase 2 (WebSocket Protocol Implementation) are complete. The WebSo
 - Made ErrorResponse.error field public for use in websocket.rs
 - Event filtering compares string worker_id (from event) with Uuid worker_id (converted to string)
 - All builds successful, all tests passing (7 tests)
+
+---
+
+### Phase 3: Frontend Implementation
+
+#### Session 3: 2025-10-15
+
+**Tasks Completed:**
+- ✅ Task 3.1: Create HTML Structure
+  - Created web/public/index.html with complete structure
+  - Added DOCTYPE, html, head, body structure
+  - Set viewport meta tag for responsive design
+  - Linked to style.css and app.js
+  - Added header section with title and connection status indicator
+  - Added worker container with name and state badge
+  - Added output container with scrollable div
+  - Added input container with prompt input, send button, and cancel button
+  - All elements have appropriate IDs for JavaScript access
+
+- ✅ Task 3.2: Create CSS Styles
+  - Created web/public/style.css with complete styling
+  - Added CSS reset (margin, padding, box-sizing)
+  - Set base font family and colors
+  - Styled header with flexbox layout, white background, border-radius, box shadow
+  - Styled connection status with circular indicator and color states (gray, green, red)
+  - Styled worker container with white background, border-radius, box shadow
+  - Styled worker header with flexbox layout and border-bottom separator
+  - Styled state badge with pill shape and color variants (green for idle, orange for busy, red for idle_failed)
+  - Styled output container with fixed height (500px), scroll, light gray background, monospace font
+  - Styled output chunks with white background, left border for type indication (blue: assistant, orange: tool-use, green: tool-result, red: error)
+  - Styled input container with flexbox layout, border-top separator
+  - Styled input field with flex: 1, border, focus state with blue border
+  - Styled buttons with color variants (blue for send, red for cancel), hover states, disabled state
+
+- ✅ Task 3.3: Implement JavaScript Application
+  - Created web/public/app.js with QWebUI class
+  - Implemented constructor with initialization of state and element references
+  - Implemented init() method to fetch workers, select first worker, setup event listeners, connect WebSocket
+  - Implemented fetchWorkers() method to fetch from /api/workers endpoint
+  - Implemented setupEventListeners() method for send button, cancel button, and Enter key
+
+- ✅ Task 3.4: Implement WebSocket Client
+  - Implemented connect() method to create WebSocket connection
+  - Implemented onopen handler to update connection status, reset reconnect attempts
+  - Implemented onmessage handler to parse JSON and call handleEvent()
+  - Implemented onclose handler to update connection status, check close code, call reconnect() for abnormal closure
+  - Implemented onerror handler to log WebSocket errors
+  - Implemented reconnect() method with exponential backoff (max 10 attempts)
+
+- ✅ Task 3.5: Implement Event Handling
+  - Implemented handleEvent() method to route events to appropriate handlers
+  - Implemented handleSnapshot() method to update worker name, state, and clear output
+  - Implemented updateWorkerState() method to update state badge and enable/disable controls
+  - Implemented handleJobStarted() method to clear previous output
+  - Implemented handleJobCompleted() method to display error message if failed
+  - Implemented handleOutputChunk() method to handle assistant_response, tool_use, tool_result chunks
+
+- ✅ Task 3.6: Implement User Actions
+  - Implemented appendOutput() method to create output chunk div, append to output, scroll to bottom
+  - Implemented sendPrompt() method to get input value, create command object, send via WebSocket, clear input
+  - Implemented cancelJob() method to create cancel command, send via WebSocket
+  - Implemented updateConnectionStatus() method to update status indicator class and text
+  - Implemented showError() method to display error message in output
+
+**Phase 3 Status: COMPLETE ✅**
+
+All tasks in Phase 3 (Frontend Implementation) are complete. The frontend is fully functional:
+- HTML structure with all required elements
+- CSS styles with responsive design and color-coded states
+- JavaScript application with QWebUI class
+- WebSocket client with reconnection logic
+- Event handling for all event types
+- User actions (send prompt, cancel job)
+
+**Next Steps:**
+- Proceed to Phase 4: Integration & Testing
+
+**Notes:**
+- Frontend uses vanilla JavaScript (no framework dependencies)
+- WebSocket URL uses window.location.host for automatic host detection
+- Reconnection uses exponential backoff with max 10 attempts
+- Output scrolls to bottom automatically on new chunks
+- All frontend files created successfully
+
+---
+
+### Phase 4: Integration & Testing
+
+#### Session 4: 2025-10-15
+
+**Tasks Completed:**
+- ✅ Task 4.1: CLI Integration
+  - Added `web_ui: bool` field to ChatArgs with `#[arg(long)]`
+  - Added `web_port: Option<u16>` field to ChatArgs with `#[arg(long)]`
+  - Documented arguments in help text
+  - Initialized time conversion at startup with `web_server::init_time_conversion()`
+  - Created WebUI instance if `--web-ui` flag or `Q_WEB_UI` environment variable is set
+  - Collected headless UIs vector and passed to AgentEnvironment::new()
+  - Started WebServer in background tokio task with shutdown signal coordination
+  - Configured web server to bind to 127.0.0.1 (localhost only) on specified port (default: 8080)
+  - Added error handling for "Address already in use" with helpful message suggesting --web-port flag
+  - Logged web UI URL on startup: "Web UI available at http://127.0.0.1:{port}"
+  - Added `shutdown_signal()` method to AgentEnvironment for external coordination
+  - Verified build successful with `cargo check`
+
+**Phase 4 Status: IN PROGRESS**
+
+CLI integration is complete. The web UI can now be started with:
+```bash
+q chat --web-ui
+q chat --web-ui --web-port 3000
+Q_WEB_UI=1 q chat
+```
+
+**Next Steps:**
+- Continue with Phase 4: Testing tasks (unit tests, integration tests, manual testing)
+
+**Notes:**
+- Made `init_time_conversion` public through web_server module re-export
+- WebServer spawned in background task with graceful shutdown coordination
+- WebUI added to AgentEnvironment's headless UIs for event forwarding
+- All builds successful, no compilation errors

@@ -216,6 +216,11 @@ impl AgentEnvironment {
     pub fn shutdown(&self) {
         self.shutdown_signal.notify_waiters();
     }
+    
+    /// Get shutdown signal for external coordination
+    pub fn shutdown_signal(&self) -> Arc<Notify> {
+        self.shutdown_signal.clone()
+    }
 
     /// Main execution loop
     pub async fn run(&self) -> Result<()> {

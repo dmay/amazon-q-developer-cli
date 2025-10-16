@@ -257,6 +257,12 @@ pub struct ChatArgs {
     /// Platform to use for LLM
     #[arg(long = "platform", value_enum)]
     pub platform: Option<Platform>,
+    /// Enable web UI
+    #[arg(long)]
+    pub web_ui: bool,
+    /// Web UI port (default: 8080)
+    #[arg(long)]
+    pub web_port: Option<u16>,
 }
 
 impl ChatArgs {
@@ -268,6 +274,9 @@ impl ChatArgs {
         
         // Invert no_interactive flag for clearer logic
         let interactive = !self.no_interactive;
+        
+        // Initialize time conversion for WebUI events
+        crate::cli::chat::web_server::init_time_conversion();
         
         // Task 8.1.1: Create EventBus
         let event_bus = EventBus::default();
@@ -324,14 +333,56 @@ impl ChatArgs {
             }
         };
         
+        // Create WebUI if enabled
+        let web_ui: Option<Arc<crate::cli::chat::web_server::WebUI>> = if self.web_ui || std::env::var("Q_WEB_UI").is_ok() {
+            use crate::cli::chat::web_server::WebUI;
+            Some(Arc::new(WebUI::new(session.clone())))
+        } else {
+            None
+        };
+        
+        // Collect headless UIs
+        let mut headless_uis: Vec<Arc<dyn crate::agent_env::HeadlessInterface>> = vec![];
+        if let Some(ref web_ui) = web_ui {
+            headless_uis.push(web_ui.clone());
+        }
+        
         // Task 8.1.6: Create AgentEnvironment
         let agent_env = AgentEnvironment::new(
             session.clone(),
             event_bus.clone(),
             main_ui,
-            vec![], // No headless UIs for now
+            headless_uis,
             interactive,
         );
+        
+        // Start web server if WebUI is enabled
+        if let Some(web_ui) = web_ui {
+            use crate::cli::chat::web_server::WebServer;
+            use std::net::SocketAddr;
+            
+            let web_port = self.web_port.unwrap_or(8080);
+            let web_addr: SocketAddr = ([127, 0, 0, 1], web_port).into();
+            
+            let web_server = WebServer::new(
+                web_addr,
+                session.clone(),
+                web_ui,
+            );
+            
+            let shutdown_signal = agent_env.shutdown_signal();
+            tokio::spawn(async move {
+                if let Err(e) = web_server.run_with_shutdown(shutdown_signal).await {
+                    if e.to_string().contains("Address already in use") {
+                        tracing::error!("Port {} already in use. Try --web-port <port>", web_port);
+                    } else {
+                        tracing::error!("Web server error: {}", e);
+                    }
+                }
+            });
+            
+            tracing::info!("Web UI available at http://{}", web_addr);
+        }
         
         // Error if no input provided in non-interactive mode
         if self.input.is_none() && !interactive {

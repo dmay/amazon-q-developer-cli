@@ -4,9 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Q CLI - Web UI</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Q CLI - Web UI</h1>
-    <p>Placeholder - Frontend will be implemented in Phase 3</p>
+    <div class="container">
+        <header>
+            <h1>Q CLI - Web UI</h1>
+            <div class="status">
+                <span class="status-indicator" id="connection-status"></span>
+                <span id="connection-text">Connecting...</span>
+            </div>
+        </header>
+        
+        <main>
+            <div class="worker-container">
+                <div class="worker-header">
+                    <h2 id="worker-name">Worker</h2>
+                    <div class="worker-state">
+                        <span class="state-badge" id="worker-state">idle</span>
+                    </div>
+                </div>
+                
+                <div class="output-container">
+                    <div class="output" id="output"></div>
+                </div>
+                
+                <div class="input-container">
+                    <input 
+                        type="text" 
+                        id="prompt-input" 
+                        placeholder="Enter your prompt..."
+                        disabled
+                    >
+                    <button id="send-button" disabled>Send</button>
+                    <button id="cancel-button" disabled>Cancel</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
 </body>
 </html>

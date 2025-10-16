@@ -309,30 +309,30 @@ This phase implements the browser-based user interface using vanilla JavaScript.
 
 ### 3.1 Create HTML Structure
 
-- [ ] **Create index.html** (Design Doc §7)
+- [x] **Create index.html** (Design Doc §7)
   - Create file at web/public/index.html
   - Add DOCTYPE, html, head, body structure
   - Set viewport meta tag for responsive design
   - Link to style.css and app.js
 
-- [ ] **Add header section** (Design Doc §7)
+- [x] **Add header section** (Design Doc §7)
   - Add h1 title: "Q CLI - Web UI"
   - Add connection status indicator (span with id)
   - Add connection status text (span with id)
   - Style with flexbox for layout
 
-- [ ] **Add worker container** (Design Doc §7)
+- [x] **Add worker container** (Design Doc §7)
   - Create main container div
   - Add worker header with name and state badge
   - Add IDs for dynamic content: worker-name, worker-state
 
-- [ ] **Add output container** (Design Doc §7)
+- [x] **Add output container** (Design Doc §7)
   - Create scrollable output div
   - Set fixed height (500px)
   - Add ID: output
   - Style for overflow-y: auto
 
-- [ ] **Add input container** (Design Doc §7)
+- [x] **Add input container** (Design Doc §7)
   - Create input field with ID: prompt-input
   - Add send button with ID: send-button
   - Add cancel button with ID: cancel-button
@@ -341,62 +341,62 @@ This phase implements the browser-based user interface using vanilla JavaScript.
 
 ### 3.2 Create CSS Styles
 
-- [ ] **Create style.css** (Design Doc §7)
+- [x] **Create style.css** (Design Doc §7)
   - Create file at web/public/style.css
   - Add CSS reset (margin, padding, box-sizing)
   - Set base font family and colors
 
-- [ ] **Style header** (Design Doc §7)
+- [x] **Style header** (Design Doc §7)
   - Flexbox layout for title and status
   - White background with border-radius
   - Box shadow for depth
   - Padding and margins
 
-- [ ] **Style connection status** (Design Doc §7)
+- [x] **Style connection status** (Design Doc §7)
   - Circular indicator (12px, border-radius: 50%)
   - Color states: gray (default), green (connected), red (disconnected)
   - Flexbox for indicator + text layout
 
-- [ ] **Style worker container** (Design Doc §7)
+- [x] **Style worker container** (Design Doc §7)
   - White background with border-radius
   - Box shadow for depth
   - Overflow hidden for clean edges
 
-- [ ] **Style worker header** (Design Doc §7)
+- [x] **Style worker header** (Design Doc §7)
   - Flexbox for name and state badge
   - Border-bottom separator
   - Padding
 
-- [ ] **Style state badge** (Design Doc §7)
+- [x] **Style state badge** (Design Doc §7)
   - Pill shape with border-radius
   - Color variants: green (idle), orange (busy), red (idle_failed)
   - Uppercase text
   - Padding
 
-- [ ] **Style output container** (Design Doc §7)
+- [x] **Style output container** (Design Doc §7)
   - Fixed height with scroll
   - Light gray background
   - Padding
   - Monospace font for output
 
-- [ ] **Style output chunks** (Design Doc §7)
+- [x] **Style output chunks** (Design Doc §7)
   - White background with border-radius
   - Left border for type indication (blue: assistant, orange: tool-use, green: tool-result)
   - Padding and margins
   - Pre-wrap for text wrapping
 
-- [ ] **Style input container** (Design Doc §7)
+- [x] **Style input container** (Design Doc §7)
   - Flexbox layout for input + buttons
   - Border-top separator
   - Padding and gaps
 
-- [ ] **Style input field** (Design Doc §7)
+- [x] **Style input field** (Design Doc §7)
   - Flex: 1 to fill space
   - Border and border-radius
   - Padding
   - Focus state with blue border
 
-- [ ] **Style buttons** (Design Doc §7)
+- [x] **Style buttons** (Design Doc §7)
   - Padding and border-radius
   - Color variants: blue (send), red (cancel)
   - Hover states
@@ -404,31 +404,31 @@ This phase implements the browser-based user interface using vanilla JavaScript.
 
 ### 3.3 Implement JavaScript Application
 
-- [ ] **Create app.js** (Design Doc §7)
+- [x] **Create app.js** (Design Doc §7)
   - Create file at web/public/app.js
   - Add DOMContentLoaded event listener
   - Initialize QWebUI class
 
-- [ ] **Define QWebUI class** (Design Doc §7)
+- [x] **Define QWebUI class** (Design Doc §7)
   - Add constructor with initialization
   - Store workerId, ws, reconnect state
   - Cache DOM element references
   - Define max reconnect attempts and delay
 
-- [ ] **Implement init() method** (Design Doc §7)
+- [x] **Implement init() method** (Design Doc §7)
   - Fetch worker list from /api/workers
   - Select first worker (MVP: single worker)
   - Set worker name in UI
   - Setup event listeners
   - Call connect()
 
-- [ ] **Implement fetchWorkers() method** (Design Doc §7)
+- [x] **Implement fetchWorkers() method** (Design Doc §7)
   - Fetch from /api/workers endpoint
   - Parse JSON response
   - Return workers array
   - Handle fetch errors with console.error
 
-- [ ] **Implement setupEventListeners() method** (Design Doc §7)
+- [x] **Implement setupEventListeners() method** (Design Doc §7)
   - Add click listener to send button → sendPrompt()
   - Add click listener to cancel button → cancelJob()
   - Add keypress listener to input (Enter key) → sendPrompt()
@@ -436,32 +436,32 @@ This phase implements the browser-based user interface using vanilla JavaScript.
 
 ### 3.4 Implement WebSocket Client
 
-- [ ] **Implement connect() method** (Design Doc §7)
+- [x] **Implement connect() method** (Design Doc §7)
   - Update connection status to "connecting"
   - Create WebSocket with URL: ws://{host}/ws/worker/{workerId}
   - Set up onopen, onmessage, onclose, onerror handlers
 
-- [ ] **Implement onopen handler** (Design Doc §7)
+- [x] **Implement onopen handler** (Design Doc §7)
   - Log connection success
   - Update connection status to "connected"
   - Reset reconnect attempts and delay
 
-- [ ] **Implement onmessage handler** (Design Doc §7)
+- [x] **Implement onmessage handler** (Design Doc §7)
   - Parse JSON message
   - Call handleEvent() with parsed data
   - Log errors if JSON parsing fails
 
-- [ ] **Implement onclose handler** (Design Doc §7)
+- [x] **Implement onclose handler** (Design Doc §7)
   - Log disconnection
   - Update connection status to "disconnected"
   - Check close code (1000 = normal, don't reconnect)
   - Call reconnect() for abnormal closure
 
-- [ ] **Implement onerror handler** (Design Doc §7)
+- [x] **Implement onerror handler** (Design Doc §7)
   - Log WebSocket error
   - Error details for debugging
 
-- [ ] **Implement reconnect() method** (Design Doc §7)
+- [x] **Implement reconnect() method** (Design Doc §7)
   - Check max reconnect attempts
   - Calculate exponential backoff delay
   - Log reconnection attempt
@@ -469,63 +469,63 @@ This phase implements the browser-based user interface using vanilla JavaScript.
 
 ### 3.5 Implement Event Handling
 
-- [ ] **Implement handleEvent() method** (Design Doc §7)
+- [x] **Implement handleEvent() method** (Design Doc §7)
   - Switch on event.type
   - Route to appropriate handler method
   - Log unknown event types
 
-- [ ] **Implement handleSnapshot() method** (Design Doc §7)
+- [x] **Implement handleSnapshot() method** (Design Doc §7)
   - Update worker name from snapshot
   - Update worker state
   - Clear output for fresh start
   - Log snapshot received
 
-- [ ] **Implement updateWorkerState() method** (Design Doc §7)
+- [x] **Implement updateWorkerState() method** (Design Doc §7)
   - Update state badge text and class
   - Enable/disable input controls based on state
   - Idle/IdleFailed: enable input and send, disable cancel
   - Busy: disable input and send, enable cancel
 
-- [ ] **Implement handleJobStarted() method** (Design Doc §7)
+- [x] **Implement handleJobStarted() method** (Design Doc §7)
   - Clear previous output
   - Log job started
 
-- [ ] **Implement handleJobCompleted() method** (Design Doc §7)
+- [x] **Implement handleJobCompleted() method** (Design Doc §7)
   - Check result status
   - Display error message if failed
   - Log job completion
 
-- [ ] **Implement handleOutputChunk() method** (Design Doc §7)
+- [x] **Implement handleOutputChunk() method** (Design Doc §7)
   - Switch on chunk.chunk_type
   - Call appendOutput() with appropriate text and type
   - Format tool-use and tool-result with JSON.stringify
 
 ### 3.6 Implement User Actions
 
-- [ ] **Implement appendOutput() method** (Design Doc §7)
+- [x] **Implement appendOutput() method** (Design Doc §7)
   - Create div element with class: output-chunk {type}
   - Set textContent to provided text
   - Append to output container
   - Scroll to bottom (scrollTop = scrollHeight)
 
-- [ ] **Implement sendPrompt() method** (Design Doc §7)
+- [x] **Implement sendPrompt() method** (Design Doc §7)
   - Get input value and trim
   - Return early if empty
   - Create command object: {type: "prompt", text: ...}
   - Send via WebSocket as JSON
   - Clear input field
 
-- [ ] **Implement cancelJob() method** (Design Doc §7)
+- [x] **Implement cancelJob() method** (Design Doc §7)
   - Create command object: {type: "cancel"}
   - Send via WebSocket as JSON
   - Log cancellation
 
-- [ ] **Implement updateConnectionStatus() method** (Design Doc §7)
+- [x] **Implement updateConnectionStatus() method** (Design Doc §7)
   - Update status indicator class (connecting, connected, disconnected)
   - Update status text
   - Use status text map for display
 
-- [ ] **Implement showError() method** (Design Doc §7)
+- [x] **Implement showError() method** (Design Doc §7)
   - Clear output container
   - Display error message with error styling
   - Log error to console
@@ -540,27 +540,27 @@ This phase integrates the WebUI with the existing Q CLI and performs comprehensi
 
 ### 4.1 CLI Integration
 
-- [ ] **Add CLI arguments to ChatArgs** (Design Doc §5)
+- [x] **Add CLI arguments to ChatArgs** (Design Doc §5)
   - Add `web_ui: bool` field with `#[arg(long)]`
   - Add `web_port: Option<u16>` field with `#[arg(long)]`
   - Document arguments in help text
 
-- [ ] **Initialize time conversion in ChatArgs::execute()** (Design Doc §1, §5)
+- [x] **Initialize time conversion in ChatArgs::execute()** (Design Doc §1, §5)
   - Call `web_server::events::init_time_conversion()` at startup
   - Place before any event generation
   - Document why this is needed (Instant to SystemTime conversion)
 
-- [ ] **Create WebUI instance in ChatArgs::execute()** (Design Doc §5)
+- [x] **Create WebUI instance in ChatArgs::execute()** (Design Doc §5)
   - Create `Arc<WebUI>` with session reference
   - Place after session creation
   - Store for use in AgentEnvironment and WebServer
 
-- [ ] **Check web UI enable flag** (Design Doc §5)
+- [x] **Check web UI enable flag** (Design Doc §5)
   - Check `self.web_ui` flag or `Q_WEB_UI` environment variable
   - Determine if web server should start
   - Log decision for debugging
 
-- [ ] **Start WebServer in background task** (Design Doc §5)
+- [x] **Start WebServer in background task** (Design Doc §5)
   - Parse web_port (default: 8080)
   - Create SocketAddr with 127.0.0.1 (localhost only)
   - Create WebServer instance
@@ -568,13 +568,13 @@ This phase integrates the WebUI with the existing Q CLI and performs comprehensi
   - Pass shutdown_signal for coordination
   - Log web UI URL: http://127.0.0.1:{port}
 
-- [ ] **Add WebUI to AgentEnvironment headless UIs** (Design Doc §5)
+- [x] **Add WebUI to AgentEnvironment headless UIs** (Design Doc §5)
   - Create headless_uis vector
   - Add web_ui if enabled
   - Pass to AgentEnvironment::new()
   - Ensure WebUI receives all events
 
-- [ ] **Handle web server errors** (Design Doc §5)
+- [x] **Handle web server errors** (Design Doc §5)
   - Log errors from web server task
   - Detect "Address already in use" error
   - Suggest --web-port flag in error message
