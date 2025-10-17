@@ -94,4 +94,54 @@ This ensures all workers created through `session.build_worker()` (including tho
 **Failure error**
 `ERROR chat_cli::agent_env::session: 179: Job failed for worker worker_id=2f55ceb0-cf37-44a7-bee7-275c7a1b1426 error=Os not available in worker`
 
+## [x] StructuredIO sends full received prompt JSON to Conversation History
+**Steps**
+- User starts CLI with structured IO
+- User enters `{"worker_id":"...","prompt":"introduce yourself"}`
+**Expected**
+- New Conversation History entry contains "introduce yourself"
+**Actual**
+- New Conversation History entry contains whole original JSON
 
+**Resolution**
+Modified StructuredIO input parsing to extract the "text" or "prompt" field from JSON input instead of using the entire line. When JSON is received without a "command" field, the code now:
+1. Checks for "text" field first
+2. Falls back to "prompt" field if "text" doesn't exist
+3. Only uses the full line as fallback if neither field exists
+
+This ensures that conversation history contains only the actual prompt text, not the JSON wrapper.
+
+## [x] StructuredIO does not display prompts sent from WebUI
+**New feature request**: When user sends a prompt through WebUi the signal should also appear in Event Bus and StructuredIO should display it
+
+**Resolution**
+Introduced new WebUIEvent class in the event system to handle WebUI-specific events:
+1. Added `WebUIEvent` enum to agent_env/events.rs with `PromptReceived` variant containing worker_id, text, and timestamp
+2. Added `WebUI` variant to `AgentEnvironmentEvent` enum
+3. Updated event helper methods (worker_id(), timestamp(), is_webui_event())
+4. Published `WebUIEvent::PromptReceived` in websocket.rs when prompt is received from WebUI
+5. Added handling in StructuredIO to display webui_prompt events with worker_id and text
+6. Added serialization support in web_server/events.rs for WebUI events
+
+Now when a user sends a prompt through WebUI, StructuredIO displays it as a "webui_prompt" event, making it visible to all observers of the event bus.
+
+## [x] StructuredIO output is difficult to understand at a glance for a human
+**New feature request**: StructuredIO should display different kinds of events in different colors:
+- Only assistant responses and tool requests are displayed in white
+- Signals from WebUI are displayed in cyan
+- Job and worker status are displayed in light grey
+- Errors are dispsalyed in red
+- Session-level events are displayed in light blue
+
+**Resolution**
+Added color coding to StructuredIO output using owo-colors:
+1. Added owo_colors import to StructuredIO
+2. Applied colors to different event types:
+   - Worker events (Created, Deleted, LifecycleStateChanged): bright_black (light grey)
+   - Job events (Started): bright_black (light grey)
+   - Job events (Completed with failure): red
+   - Job events (Completed with success/cancelled): bright_black (light grey)
+   - AgentLoop events (ResponseReceived, ToolUseRequestReceived): default white (no color)
+   - WebUI events (PromptReceived): cyan
+
+This makes StructuredIO output much more readable at a glance, with errors standing out in red, WebUI interactions in cyan, and status updates in subdued grey, while keeping the main content (assistant responses and tool requests) in the default white color.

@@ -193,6 +193,20 @@ pub enum WebUIEvent {
         timestamp: f64,
     },
 
+    // WebUI Events
+    PromptReceived {
+        worker_id: String,
+        text: String,
+        timestamp: f64,
+    },
+    ServerStarted {
+        address: String,
+        timestamp: f64,
+    },
+    WebSocketConnected {
+        timestamp: f64,
+    },
+
     // Snapshot Events (for initial state sync and queries)
     WorkersSnapshot {
         workers: Vec<WorkerMetadataJson>,
@@ -223,6 +237,9 @@ impl WebUIEvent {
             }
             AgentEnvironmentEvent::System(system_event) => {
                 Self::from_system_event(system_event)
+            }
+            AgentEnvironmentEvent::WebUI(webui_event) => {
+                Self::from_webui_event(webui_event)
             }
         }
     }
@@ -337,6 +354,32 @@ impl WebUIEvent {
         }
     }
 
+    fn from_webui_event(event: crate::agent_env::events::WebUIEvent) -> Self {
+        match event {
+            crate::agent_env::events::WebUIEvent::PromptReceived {
+                worker_id,
+                text,
+                timestamp,
+            } => WebUIEvent::PromptReceived {
+                worker_id: worker_id.to_string(),
+                text,
+                timestamp: instant_to_unix_timestamp(timestamp),
+            },
+            crate::agent_env::events::WebUIEvent::ServerStarted {
+                address,
+                timestamp,
+            } => WebUIEvent::ServerStarted {
+                address,
+                timestamp: instant_to_unix_timestamp(timestamp),
+            },
+            crate::agent_env::events::WebUIEvent::WebSocketConnected {
+                timestamp,
+            } => WebUIEvent::WebSocketConnected {
+                timestamp: instant_to_unix_timestamp(timestamp),
+            },
+        }
+    }
+
     /// Extract worker_id from events that have one
     pub fn worker_id(&self) -> Option<&str> {
         match self {
@@ -348,8 +391,11 @@ impl WebUIEvent {
             | Self::OutputChunk { worker_id, .. }
             | Self::ResponseReceived { worker_id, .. }
             | Self::ToolUseRequested { worker_id, .. }
+            | Self::PromptReceived { worker_id, .. }
             | Self::ConversationSnapshot { worker_id, .. } => Some(worker_id),
             Self::ShutdownInitiated { .. }
+            | Self::ServerStarted { .. }
+            | Self::WebSocketConnected { .. }
             | Self::WorkersSnapshot { .. }
             | Self::Error { .. } => None,
         }

@@ -4,6 +4,7 @@ use crate::agent_env::{
 };
 use async_trait::async_trait;
 use eyre::Result;
+use owo_colors::OwoColorize;
 use serde_json::json;
 use std::io::Write;
 use std::sync::Arc;
@@ -134,11 +135,27 @@ impl StructuredIO {
                                     }
                                 }
                             } else {
-                                // No command field - treat as prompt
-                                if let Some(worker_id) = session.get_workers().first().map(|w| w.id) {
+                                // No command field - treat as prompt, extract text/prompt and worker_id
+                                let worker_id = json
+                                    .get("worker_id")
+                                    .and_then(|v| v.as_str())
+                                    .and_then(|s| Uuid::parse_str(s).ok())
+                                    .or_else(|| {
+                                        // Default to first worker
+                                        session.get_workers().first().map(|w| w.id)
+                                    });
+                                
+                                let text = json
+                                    .get("text")
+                                    .or_else(|| json.get("prompt"))
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or(line)
+                                    .to_string();
+                                
+                                if let Some(wid) = worker_id {
                                     PromptResult::Command(AgentEnvironmentCommand::Prompt {
-                                        worker_id,
-                                        text: line.to_string(),
+                                        worker_id: wid,
+                                        text,
                                     })
                                 } else {
                                     continue;
@@ -214,7 +231,7 @@ impl UserInterface for StructuredIO {
                 });
 
                 let mut writer = self.output_writer.lock().await;
-                writeln!(writer, "{}", json).unwrap();
+                writeln!(writer, "{}", json.to_string().white().dimmed()).unwrap();
                 writer.flush().unwrap();
             }
             AgentEnvironmentEvent::Worker(WorkerEvent::Deleted {
@@ -228,7 +245,7 @@ impl UserInterface for StructuredIO {
                 });
 
                 let mut writer = self.output_writer.lock().await;
-                writeln!(writer, "{}", json).unwrap();
+                writeln!(writer, "{}", json.to_string().white().dimmed()).unwrap();
                 writer.flush().unwrap();
             }
             AgentEnvironmentEvent::Worker(WorkerEvent::LifecycleStateChanged {
@@ -248,7 +265,7 @@ impl UserInterface for StructuredIO {
                 });
 
                 let mut writer = self.output_writer.lock().await;
-                writeln!(writer, "{}", json).unwrap();
+                writeln!(writer, "{}", json.to_string().white().dimmed()).unwrap();
                 writer.flush().unwrap();
             }
             AgentEnvironmentEvent::Job(JobEvent::Started {
@@ -266,7 +283,7 @@ impl UserInterface for StructuredIO {
                 });
 
                 let mut writer = self.output_writer.lock().await;
-                writeln!(writer, "{}", json).unwrap();
+                writeln!(writer, "{}", json.to_string().white().dimmed()).unwrap();
                 writer.flush().unwrap();
             }
             AgentEnvironmentEvent::Job(JobEvent::Completed {
@@ -290,7 +307,11 @@ impl UserInterface for StructuredIO {
                 });
 
                 let mut writer = self.output_writer.lock().await;
-                writeln!(writer, "{}", json).unwrap();
+                let output = match result {
+                    JobCompletionResult::Failed { .. } => json.to_string().red().to_string(),
+                    _ => json.to_string().white().dimmed().to_string(),
+                };
+                writeln!(writer, "{}", output).unwrap();
                 writer.flush().unwrap();
             }
             AgentEnvironmentEvent::AgentLoop(AgentLoopEvent::ResponseReceived {
@@ -323,6 +344,45 @@ impl UserInterface for StructuredIO {
 
                 let mut writer = self.output_writer.lock().await;
                 writeln!(writer, "{}", json).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::WebUI(crate::agent_env::events::WebUIEvent::PromptReceived {
+                worker_id,
+                text,
+                ..
+            }) => {
+                let json = json!({
+                    "event": "webui_prompt",
+                    "worker_id": worker_id,
+                    "text": text,
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json.to_string().cyan()).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::WebUI(crate::agent_env::events::WebUIEvent::ServerStarted {
+                address,
+                ..
+            }) => {
+                let json = json!({
+                    "event": "webui_server_started",
+                    "address": address,
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json.to_string().bright_blue()).unwrap();
+                writer.flush().unwrap();
+            }
+            AgentEnvironmentEvent::WebUI(crate::agent_env::events::WebUIEvent::WebSocketConnected {
+                ..
+            }) => {
+                let json = json!({
+                    "event": "webui_websocket_connected",
+                });
+
+                let mut writer = self.output_writer.lock().await;
+                writeln!(writer, "{}", json.to_string().bright_blue()).unwrap();
                 writer.flush().unwrap();
             }
             _ => {}

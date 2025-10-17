@@ -100,6 +100,15 @@ pub async fn websocket_handler(
 async fn handle_websocket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
 
+    // Publish WebSocketConnected event
+    state.session.event_bus().publish(
+        crate::agent_env::AgentEnvironmentEvent::WebUI(
+            crate::agent_env::events::WebUIEvent::WebSocketConnected {
+                timestamp: std::time::Instant::now(),
+            }
+        )
+    );
+
     // Subscribe to events BEFORE sending snapshot to prevent race condition
     let mut event_rx = state.web_ui.subscribe();
 
@@ -244,7 +253,16 @@ async fn handle_command(
                 .conversation_history
                 .lock()
                 .unwrap()
-                .push_input_message(text);
+                .push_input_message(text.clone());
+
+            // Publish WebUI event for prompt received
+            session.event_bus().publish(crate::agent_env::AgentEnvironmentEvent::WebUI(
+                crate::agent_env::events::WebUIEvent::PromptReceived {
+                    worker_id: worker_uuid,
+                    text: text.clone(),
+                    timestamp: std::time::Instant::now(),
+                }
+            ));
 
             // Launch agent loop
             use crate::agent_env::worker_tasks::agent_loop::AgentLoopInput;

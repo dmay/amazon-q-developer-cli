@@ -144,6 +144,26 @@ pub enum SystemEvent {
     },
 }
 
+/// WebUI-specific events
+#[derive(Debug, Clone)]
+pub enum WebUIEvent {
+    /// User sent a prompt through WebUI
+    PromptReceived {
+        worker_id: Uuid,
+        text: String,
+        timestamp: Instant,
+    },
+    /// Web server started
+    ServerStarted {
+        address: String,
+        timestamp: Instant,
+    },
+    /// Client connected to WebSocket
+    WebSocketConnected {
+        timestamp: Instant,
+    },
+}
+
 /// Top-level event envelope
 #[derive(Debug, Clone)]
 pub enum AgentEnvironmentEvent {
@@ -155,6 +175,8 @@ pub enum AgentEnvironmentEvent {
     AgentLoop(AgentLoopEvent),
     /// System-level event
     System(SystemEvent),
+    /// WebUI-specific event
+    WebUI(WebUIEvent),
 }
 
 impl AgentEnvironmentEvent {
@@ -169,6 +191,9 @@ impl AgentEnvironmentEvent {
             Self::Job(JobEvent::OutputChunk { worker_id, .. }) => Some(*worker_id),
             Self::AgentLoop(AgentLoopEvent::ResponseReceived { worker_id, .. }) => Some(*worker_id),
             Self::AgentLoop(AgentLoopEvent::ToolUseRequestReceived { worker_id, .. }) => Some(*worker_id),
+            Self::WebUI(WebUIEvent::PromptReceived { worker_id, .. }) => Some(*worker_id),
+            Self::WebUI(WebUIEvent::ServerStarted { .. }) => None,
+            Self::WebUI(WebUIEvent::WebSocketConnected { .. }) => None,
             Self::System(_) => None,
         }
     }
@@ -193,6 +218,11 @@ impl AgentEnvironmentEvent {
         matches!(self, Self::System(_))
     }
 
+    /// Check if this is a WebUI event
+    pub fn is_webui_event(&self) -> bool {
+        matches!(self, Self::WebUI(_))
+    }
+
     /// Get timestamp from any event
     pub fn timestamp(&self) -> Instant {
         match self {
@@ -205,6 +235,9 @@ impl AgentEnvironmentEvent {
             Self::AgentLoop(AgentLoopEvent::ResponseReceived { timestamp, .. }) => *timestamp,
             Self::AgentLoop(AgentLoopEvent::ToolUseRequestReceived { timestamp, .. }) => *timestamp,
             Self::System(SystemEvent::ShutdownInitiated { timestamp, .. }) => *timestamp,
+            Self::WebUI(WebUIEvent::PromptReceived { timestamp, .. }) => *timestamp,
+            Self::WebUI(WebUIEvent::ServerStarted { timestamp, .. }) => *timestamp,
+            Self::WebUI(WebUIEvent::WebSocketConnected { timestamp, .. }) => *timestamp,
         }
     }
 }

@@ -109,6 +109,11 @@ impl AgentEnvironment {
         })
     }
 
+    /// Start event multicasting (call before creating workers to capture all events)
+    pub fn start_event_multicasting(&self) {
+        self.spawn_event_multicast();
+    }
+
     /// Spawn job completion monitor for non-interactive mode
     /// 
     /// Monitors JobEvent::Completed events and triggers shutdown when all jobs complete.
@@ -232,8 +237,9 @@ impl AgentEnvironment {
         ));
         ctrl_c_handler.start_listening();
         
-        // Spawn event multicast task (always running)
-        let multicast_handle = self.spawn_event_multicast();
+        // Note: Event multicast task should already be started via start_event_multicasting()
+        // before calling run(). If not started, start it now for backward compatibility.
+        // This is a no-op if already started since we're using broadcast channels.
 
         // Run main UI if present
         if let Some(ui) = &self.main_ui {
@@ -285,7 +291,7 @@ impl AgentEnvironment {
 
         // Cleanup
         tracing::info!("Shutting down AgentEnvironment");
-        multicast_handle.abort();
+        // Note: Event multicast task will shut down via shutdown_signal
         self.session.cancel_all_jobs();
         
         tracing::info!("AgentEnvironment cleanup complete, returning");

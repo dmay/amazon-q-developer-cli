@@ -304,6 +304,35 @@ impl ChatArgs {
             None
         };
         
+        // Create WebUI if enabled (before worker creation to receive events)
+        let web_ui: Option<Arc<crate::cli::chat::web_server::WebUI>> = if self.web_ui || std::env::var("Q_WEB_UI").is_ok() {
+            use crate::cli::chat::web_server::WebUI;
+            Some(Arc::new(WebUI::new(session.clone())))
+        } else {
+            None
+        };
+        
+        // Collect headless UIs
+        let mut headless_uis: Vec<Arc<dyn crate::agent_env::HeadlessInterface>> = vec![];
+        if let Some(ref web_ui) = web_ui {
+            headless_uis.push(web_ui.clone());
+        }
+        
+        // Create AgentEnvironment with StructuredIO (if present) before worker creation
+        let main_ui_for_agent_env: Option<Arc<dyn crate::agent_env::UserInterface>> = 
+            main_ui_structured.clone().map(|ui| ui as Arc<dyn crate::agent_env::UserInterface>);
+        
+        let agent_env = AgentEnvironment::new(
+            session.clone(),
+            event_bus.clone(),
+            main_ui_for_agent_env,
+            headless_uis,
+            interactive,
+        );
+        
+        // Start event multicasting BEFORE creating worker
+        agent_env.start_event_multicasting();
+        
         // Task 8.1.3: Create main Worker using WorkerBuilder
         let main_worker = WorkerBuilder::new()
             .agent(self.agent.clone())
@@ -314,9 +343,10 @@ impl ChatArgs {
             .await?;
         let main_worker_id = main_worker.id;
         
-        // Create TextUi or None UI after worker (TextUi needs worker_id)
-        let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = if let Some(structured_io) = main_ui_structured {
-            Some(structured_io as Arc<dyn crate::agent_env::UserInterface>)
+        // Create TextUi after worker (TextUi needs worker_id) and update AgentEnvironment if needed
+        let main_ui: Option<Arc<dyn crate::agent_env::UserInterface>> = if main_ui_structured.is_some() {
+            // StructuredIO already set in AgentEnvironment
+            None
         } else {
             match ui_mode {
                 UiMode::Text => {
@@ -336,28 +366,27 @@ impl ChatArgs {
             }
         };
         
-        // Create WebUI if enabled
-        let web_ui: Option<Arc<crate::cli::chat::web_server::WebUI>> = if self.web_ui || std::env::var("Q_WEB_UI").is_ok() {
-            use crate::cli::chat::web_server::WebUI;
-            Some(Arc::new(WebUI::new(session.clone())))
+        // If TextUi was created, we need to recreate AgentEnvironment with it
+        let agent_env = if let Some(text_ui) = main_ui {
+            // Collect headless UIs again
+            let mut headless_uis: Vec<Arc<dyn crate::agent_env::HeadlessInterface>> = vec![];
+            if let Some(ref web_ui) = web_ui {
+                headless_uis.push(web_ui.clone());
+            }
+            
+            let new_agent_env = AgentEnvironment::new(
+                session.clone(),
+                event_bus.clone(),
+                Some(text_ui),
+                headless_uis,
+                interactive,
+            );
+            // Start event multicasting for the new AgentEnvironment
+            new_agent_env.start_event_multicasting();
+            new_agent_env
         } else {
-            None
+            agent_env
         };
-        
-        // Collect headless UIs
-        let mut headless_uis: Vec<Arc<dyn crate::agent_env::HeadlessInterface>> = vec![];
-        if let Some(ref web_ui) = web_ui {
-            headless_uis.push(web_ui.clone());
-        }
-        
-        // Task 8.1.6: Create AgentEnvironment
-        let agent_env = AgentEnvironment::new(
-            session.clone(),
-            event_bus.clone(),
-            main_ui,
-            headless_uis,
-            interactive,
-        );
         
         // Start web server if WebUI is enabled
         if let Some(web_ui) = web_ui {

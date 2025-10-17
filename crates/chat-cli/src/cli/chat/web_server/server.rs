@@ -68,9 +68,20 @@ impl WebServer {
     pub async fn run_with_shutdown(self, shutdown_signal: Arc<Notify>) -> Result<()> {
         let router = self.build_router();
 
-        tracing::info!("Web server listening on http://{}", self.addr);
-
         let listener = tokio::net::TcpListener::bind(self.addr).await?;
+        
+        let address = format!("http://{}", self.addr);
+        tracing::info!("Web server listening on {}", address);
+        
+        // Publish ServerStarted event
+        self.state.session.event_bus().publish(
+            crate::agent_env::AgentEnvironmentEvent::WebUI(
+                crate::agent_env::events::WebUIEvent::ServerStarted {
+                    address,
+                    timestamp: std::time::Instant::now(),
+                }
+            )
+        );
 
         axum::serve(listener, router)
             .with_graceful_shutdown(async move {
